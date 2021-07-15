@@ -145,7 +145,7 @@ class Board:
                                 if 0 <= row + row_change < 8 and 0 <= col + col_change < 8 and self.__grid[row + row_change][col + col_change].get_character() == self.__pieces[opponent]:
                                     scale = 2
                                     same_piece_found = False
-                                    while 0 <= row + row_change * scale < 8 and 0 <= col + col_change * scale < 8 and not same_piece_found:
+                                    while 0 <= row + row_change * scale < 8 and 0 <= col + col_change * scale < 8 and self.__grid[row + row_change * scale][col + col_change * scale].get_character() != self.EMPTY and not same_piece_found:
                                         if self.__grid[row + row_change * scale][col + col_change * scale].get_character() == self.__pieces[player]:
                                             same_piece_found = True
                                             break
