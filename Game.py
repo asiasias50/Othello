@@ -1,3 +1,6 @@
+import pickle
+
+
 class UI:
     def __init__(self):
         self.__UI_mode = None
@@ -13,41 +16,57 @@ class UI:
 class Terminal:
     def __init__(self):
         self.__number_of_players = None
-        self.__player_names = []
         self.__quit = False
         self.__Game = None
         self.__run()
 
     def __run(self):
         while not self.__quit:
-            if input("Enter q to quit or any other character to play. ") == "q":
+            game_decision = input("Enter q to quit, l to load most recent game, or any other character to play. ")
+            if game_decision == "q":
                 self.__quit = True
             else:
-                self.__initialise_names()
-                self.__Game = GameMode(self.__player_names)
-                print(f"{self.__player_names[0]} will play with black pieces, {self.__player_names[1]} will play with white pieces."
-                      f" {self.__player_names[0]} starts.")
+                if game_decision == "l":
+                    self.__load_game_state()
+                    if self.__Game is None:
+                        print("Game cannot be loaded.")
+                        continue
+                else:
+                    self.__Game = GameMode(self.__initialise_names())
+                colours = self.__Game.get_colours()
+                print(f"{self.__Game.get_names()[0]} will play with {colours[0]} pieces, {self.__Game.get_names()[1]} will play with {colours[1]} pieces."
+                      f" {self.__Game.get_names()[0]} starts.")
                 game_finished = False
                 win_status = None
-                opponents = {self.__player_names[0]: self.__player_names[1], self.__player_names[1]: self.__player_names[0]}
+                opponents = {self.__Game.get_names()[0]: self.__Game.get_names()[1], self.__Game.get_names()[1]: self.__Game.get_names()[0]}
                 while not game_finished:
-                    for player in self.__player_names:
+                    for player in self.__Game.get_names():
                         possible_moves = self.__Game.possible_player_moves(player, opponents[player])
-                        self.__Game.print_state(possible_moves)
-                        move = self.get_move_from_player(player, possible_moves)
-                        self.__Game.play(possible_moves[move], player)
-                        win_status = self.__Game.win_status(player, opponents[player])
-                        if win_status in self.__player_names or win_status == "Draw":
-                            game_finished = True
-                            break
-                if win_status == "Draw":
-                    print("Game is finished in a draw.")
-                else:
-                    print(f"Game is finished, {win_status} won.")
+                        if len(possible_moves) == 0:
+                            print(f"{player} has no possible moves.")
+                        else:
+                            self.__Game.print_state(possible_moves)
+                            move = self.__get_move_from_player(player, possible_moves)
+                            if move is None:
+                                self.__Game.set_player_order([player, opponents[player]])
+                                self.__store_game_state()
+                                game_finished = True
+                                break
+                            self.__Game.play(possible_moves[move], player)
+                            win_status = self.__Game.win_status(player, opponents[player])
+                            if win_status in self.__Game.get_names() or win_status == "Draw":
+                                game_finished = True
+                                break
+                    if win_status == "Draw":
+                        print("Game is finished in a draw.")
+                    elif win_status in self.__Game.get_names():
+                        print(f"Game is finished, {win_status} won.")
+                    else:
+                        print(f"Game is saved.")
 
     def __initialise_names(self):
         self.__number_of_players = None
-        self.__player_names = []
+        player_names = []
         while self.__number_of_players is None:
             try:
                 self.__number_of_players = int(input("Enter number of players(1 or 2): "))
@@ -60,32 +79,51 @@ class Terminal:
                 print()
                 self.__number_of_players = None
         for _ in range(1, self.__number_of_players + 1):
-            self.__player_names.append(input(f"Enter a name of player {_}. "))
+            player_names.append(input(f"Enter a name of player {_}. "))
+        return player_names
 
-    def get_move_from_player(self, player, possible_moves):
+    def __get_move_from_player(self, player, possible_moves):
         move = [-1, -1]
         possible_coordinates = []
         for coordinate in possible_moves:
             possible_coordinates.append([coordinate[0], coordinate[1]])
-        while [move[0] - 1, move[1] - 1] not in possible_coordinates:
+        move_set = False
+        while not move_set:
             try:
-                values = input(f"{player}, please enter row and column of your move(eg. 4 5). ")
+                values = input(f"{player}, please enter row and column of your move(eg. 4 5), or q to quit. ")
+                if values == "q":
+                    return None
                 for _ in range(0, len(values.split())):
                     move[_] = int(values.split()[_])
-            except InputError:
+                if [move[0] - 1, move[1] - 1] not in possible_coordinates:
+                    print("Your move must be in possible moves category.")
+                    print()
+                else:
+                    move_set = True
+            except ValueError:
                 print("You should enter two numbers, each in range from 1 to 8.")
                 print()
         return possible_coordinates.index([move[0] - 1, move[1] - 1])
 
+    def __store_game_state(self):
+        with open("Last_Game_Save.txt", "wb") as f:
+            pickle.dump(self.__Game, f)
 
-class InputError(Exception):
-    """User input is incorrect"""
-    pass
+    def __load_game_state(self):
+        try:
+            f = open("Last_Game_Save.txt", "rb")
+            self.__Game = pickle.load(f)
+        except IOError:
+            self.__Game = None
 
 
 class GameMode:
     def __init__(self, player_names):
+        self.__player_names = player_names
         self.__Board = Board(player_names)
+
+    def get_names(self):
+        return self.__player_names
 
     def play(self, move, player):
         self.__Board.make_a_move(move[0], move[1], move[2], player)
@@ -94,26 +132,32 @@ class GameMode:
         return self.__Board.get_possible_moves(player, opponent)
 
     def print_state(self, possible_moves):
-        if len(possible_moves) == 0:
-            input("You have no possible moves, turn is passed.")
-        else:
-            board = self.__Board.get_board()
-            for move in possible_moves:
-                board[move[0]][move[1]] = self.__Board.POSSIBLE
-            print()
-            print("  ", end='')
+        board = self.__Board.get_board()
+        for move in possible_moves:
+            board[move[0]][move[1]] = self.__Board.POSSIBLE
+        print()
+        print("  ", end='')
+        for col in range(0, 8):
+            print(col + 1, end=" ")
+        print("\b")
+        for row in range(0, 8):
+            print(f"{row + 1} ", end='')
             for col in range(0, 8):
-                print(col + 1, end=" ")
+                print(board[row][col], end='|')
             print("\b")
-            for row in range(0, 8):
-                print(f"{row + 1} ", end='')
-                for col in range(0, 8):
-                    print(board[row][col], end='|')
-                print("\b")
-            print()
+        print()
 
     def win_status(self, player, opponent):
         return self.__Board.win_status(player, opponent)
+
+    def set_player_order(self, new_order):
+        self.__player_names = new_order
+
+    def get_colours(self):
+        if self.__Board.get_colours()[self.__player_names[0]] == self.__Board.BLACK:
+            return ["black", "white"]
+        else:
+            return ["white", "black"]
 
 
 class Board:
@@ -189,6 +233,9 @@ class Board:
                 return opponent
         else:
             return None
+
+    def get_colours(self):
+        return self.__pieces
 
 
 class Piece:
