@@ -63,12 +63,12 @@ class Terminal:
                         if win_status in self.__Game.get_names() or win_status == "Draw":
                             game_finished = True
                             break
-                    if win_status == "Draw":
-                        print("Game is finished in a draw.")
-                    elif win_status in self.__Game.get_names():
-                        print(f"Game is finished, {win_status} won.")
-                    else:
-                        print(f"Game is saved.")
+                if win_status == "Draw":
+                    print("Game is finished in a draw.")
+                elif win_status in self.__Game.get_names():
+                    print(f"Game is finished, {win_status} won.")
+                else:
+                    print(f"Game is saved.")
 
     def __initialise_names(self):
         number_of_players = None
@@ -199,12 +199,12 @@ class GameMode:
         for move in possible_moves:
             board = deepcopy(self.__Board)
             board.make_a_move(move[0], move[1], move[2], current_player)
-            scores.append(self.__alpha_beta(board, current_player, opponent, 4, current_player, float("-inf"), float("inf")))
+            scores.append(self.__alpha_beta(board, current_player, opponent, 4, current_player, opponent, float("-inf"), float("inf")))
         return scores.index(min(scores))
 
-    def __alpha_beta(self, game_state, player, opponent, depth, minimising_player, alpha, beta):
+    def __alpha_beta(self, game_state, player, opponent, depth, minimising_player, maximising_player, alpha, beta):
         if depth == 0 or (len(game_state.get_possible_moves(player, opponent)) == 0 and len(game_state.get_possible_moves(opponent, player)) == 0):
-            return self.__heuristic(game_state, minimising_player)
+            return self.__heuristic(game_state, minimising_player, maximising_player)
         else:
             possible_moves = game_state.get_possible_moves(player, opponent)
             if player == minimising_player:
@@ -212,7 +212,7 @@ class GameMode:
                 for move in possible_moves:
                     board = deepcopy(game_state)
                     board.make_a_move(move[0], move[1], move[2], player)
-                    result = min(result, self.__alpha_beta(board, opponent, player, depth - 1, minimising_player, alpha, beta))
+                    result = min(result, self.__alpha_beta(board, opponent, player, depth - 1, minimising_player, maximising_player, alpha, beta))
                     if result <= alpha:
                         break
                     beta = min(beta, result)
@@ -222,14 +222,14 @@ class GameMode:
                 for move in possible_moves:
                     board = deepcopy(game_state)
                     board.make_a_move(move[0], move[1], move[2], player)
-                    result = max(result, self.__alpha_beta(board, opponent, player, depth - 1, minimising_player, alpha, beta))
+                    result = max(result, self.__alpha_beta(board, opponent, player, depth - 1, minimising_player, maximising_player, alpha, beta))
                     if result >= beta:
                         break
                     alpha = max(alpha, result)
                 return result
 
 
-    def __heuristic(self, game_state, minimising_player):
+    def __heuristic(self, game_state, minimising_player, maximising_player):
         heuristic_values = [[4, -3, 2, 2, 2, 2, -3, 4],
                             [-3, -4, -1, -1, -1, -1, -4, -3],
                             [2, -1, 1, 0, 0, 1, -1, 2],
@@ -244,7 +244,7 @@ class GameMode:
             for col in range(0, 8):
                 if game_state.get_board()[row][col] == game_state.get_piece_relation()[minimising_player]:
                     min_value += heuristic_values[row][col]
-                else:
+                elif game_state.get_board()[row][col] == game_state.get_piece_relation()[maximising_player]:
                     max_value += heuristic_values[row][col]
         return max_value - min_value
 
