@@ -1,5 +1,4 @@
 from pickle import dump, load
-from copy import deepcopy
 from cProfile import run
 
 
@@ -169,7 +168,7 @@ class GameMode:
     def get_ai_move(self, possible_moves):
         scores = []
         for move in range(0, len(possible_moves)):
-            board = deepcopy(self.__Board)
+            board = self.__Board.copy()
             board.make_a_move(move)
             scores.append(self.__alpha_beta(board, False, 6, True, float("-inf"), float("inf")))
         return scores.index(min(scores))
@@ -183,7 +182,7 @@ class GameMode:
             if minimising_player:
                 result = float("inf")
                 for move in range(0, len(possible_moves)):
-                    board = deepcopy(game_state)
+                    board = game_state.copy()
                     board.make_a_move(move)
                     result = min(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha, beta))
                     if result <= alpha:
@@ -193,7 +192,7 @@ class GameMode:
             else:
                 result = float("-inf")
                 for move in range(0, len(possible_moves)):
-                    board = deepcopy(game_state)
+                    board = game_state.copy()
                     board.make_a_move(move)
                     result = max(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha, beta))
                     if result >= beta:
@@ -250,6 +249,23 @@ class Board:
         self.__possible_moves = []
         self.__moves_meta_data = []
 
+    def copy(self):
+        new_board = Board()
+        for row in range(0, 8):
+            for col in range(0, 8):
+                new_board.__grid[row][col] = self.__grid[row][col]
+        for key in self.__boundary:
+            new_board.__boundary[key] = self.__boundary[key]
+        new_board.__current_player = self.__current_player
+        for move in self.__possible_moves:
+            new_board.__possible_moves.append([move[0], move[1]])
+        for data in self.__moves_meta_data:
+            new_effects = []
+            for effect in data:
+                new_effects.append([effect[0], effect[1], effect[2]])
+            new_board.__moves_meta_data.append(new_effects)
+        return new_board
+
     def __initialise_boundary(self):
         for row in range(2, 6):
             for col in range(2, 6):
@@ -265,7 +281,7 @@ class Board:
                 for col_change in [-1, 0, 1]:
                     if not (row_change == 0 and col_change == 0):
                         try:
-                            if self.__grid[row + row_change][col + col_change] == self.opposite():
+                            if self.__grid[row + row_change][col + col_change] == self.__opponents[self.__current_player]:
                                 scale = 2
                                 same_piece_found = False
                                 while self.__grid[row + row_change * scale][col + col_change * scale] != self.EMPTY and not same_piece_found:
@@ -296,7 +312,7 @@ class Board:
             for effect in self.__moves_meta_data[move]:
                 for scale in range(1, effect[2]):
                     self.__grid[row + effect[0] * scale][col + effect[1] * scale] = self.__current_player
-        self.__current_player = self.opposite()
+        self.__current_player = self.__opponents[self.__current_player]
         del self.__boundary[(row, col)]
         for row_change in [-1, 0, 1]:
             for col_change in [-1, 0, 1]:
