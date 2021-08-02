@@ -1,5 +1,6 @@
 from pickle import dump, load
 from copy import deepcopy
+from cProfile import run
 
 
 class UI:
@@ -127,8 +128,6 @@ class Terminal:
 
     def __print_state(self, possible_moves):
         board = self.__Game.get_board()
-        for move in possible_moves:
-            board[move[0]][move[1]] = self.__Game.possible_character()
         print()
         print("  ", end='')
         for col in range(0, 8):
@@ -137,7 +136,10 @@ class Terminal:
         for row in range(0, 8):
             print(f"{row + 1} ", end='')
             for col in range(0, 8):
-                print(board[row][col], end='|')
+                if [row, col] in possible_moves:
+                    print(self.__Game.possible_character(), end='|')
+                else:
+                    print(board[row][col], end='|')
             print("\b")
         print()
 
@@ -169,7 +171,7 @@ class GameMode:
         for move in range(0, len(possible_moves)):
             board = deepcopy(self.__Board)
             board.make_a_move(move)
-            scores.append(self.__alpha_beta(board, False, 3, True, float("-inf"), float("inf")))
+            scores.append(self.__alpha_beta(board, False, 6, True, float("-inf"), float("inf")))
         return scores.index(min(scores))
 
     def __alpha_beta(self, game_state, no_moves_flag, depth, minimising_player, alpha, beta):
@@ -236,45 +238,52 @@ class Board:
     def __init__(self):
         self.__grid = []
         for _ in range(8):
-            self.__grid.append([Piece(self.EMPTY) for _ in range(8)])
-        self.__grid[3][3].flip_to(self.WHITE)
-        self.__grid[4][4].flip_to(self.WHITE)
-        self.__grid[3][4].flip_to(self.BLACK)
-        self.__grid[4][3].flip_to(self.BLACK)
+            self.__grid.append([self.EMPTY for _ in range(8)])
+        self.__grid[3][3] = self.WHITE
+        self.__grid[4][4] = self.WHITE
+        self.__grid[3][4] = self.BLACK
+        self.__grid[4][3] = self.BLACK
+        self.__boundary = {}
+        self.__initialise_boundary()
         self.__current_player = self.BLACK
+        self.__opponents = {self.BLACK: self.WHITE, self.WHITE: self.BLACK}
         self.__possible_moves = []
-        self.__moves_meta_data = {}
+        self.__moves_meta_data = []
+
+    def __initialise_boundary(self):
+        for row in range(2, 6):
+            for col in range(2, 6):
+                if (row, col) not in [(3, 3), (3, 4), (4, 3), (4, 4)]:
+                    self.__boundary[(row, col)] = 0
 
     def get_possible_moves(self):
         self.__moves_meta_data = []
         self.__possible_moves = []
-        for row in range(0, 8):
-            for col in range(0, 8):
-                if self.__grid[row][col].get_character() == self.EMPTY:
-                    move_effects = []
-                    for row_change in [-1, 0, 1]:
-                        for col_change in [-1, 0, 1]:
-                            if not (row_change == 0 and col_change == 0):
-                                if 0 <= row + row_change < 8 and 0 <= col + col_change < 8 and self.__grid[row + row_change][col + col_change].get_character() == self.opposite():
-                                    scale = 2
-                                    same_piece_found = False
-                                    while 0 <= row + row_change * scale < 8 and 0 <= col + col_change * scale < 8 and self.__grid[row + row_change * scale][col + col_change * scale].get_character() != self.EMPTY and not same_piece_found:
-                                        if self.__grid[row + row_change * scale][col + col_change * scale].get_character() == self.__current_player:
-                                            same_piece_found = True
-                                            break
-                                        scale += 1
-                                    if same_piece_found:
-                                        move_effects.append([row_change, col_change, scale])
-                    if len(move_effects) != 0:
-                        self.__possible_moves.append([row, col])
-                        self.__moves_meta_data.append(move_effects)
+        for row, col in self.__boundary:
+            move_effects = []
+            for row_change in [-1, 0, 1]:
+                for col_change in [-1, 0, 1]:
+                    if not (row_change == 0 and col_change == 0):
+                        try:
+                            if self.__grid[row + row_change][col + col_change] == self.opposite():
+                                scale = 2
+                                same_piece_found = False
+                                while self.__grid[row + row_change * scale][col + col_change * scale] != self.EMPTY and not same_piece_found:
+                                    if self.__grid[row + row_change * scale][col + col_change * scale] == self.__current_player:
+                                        same_piece_found = True
+                                        break
+                                    scale += 1
+                                if same_piece_found:
+                                    move_effects.append([row_change, col_change, scale])
+                        except:
+                            continue
+            if len(move_effects) != 0:
+                self.__possible_moves.append([row, col])
+                self.__moves_meta_data.append(move_effects)
         return self.__possible_moves
 
     def opposite(self):
-        if self.__current_player == self.WHITE:
-            return self.BLACK
-        else:
-            return self.WHITE
+        return self.__opponents[self.__current_player]
 
     def get_current_player(self):
         return self.__current_player
@@ -283,29 +292,31 @@ class Board:
         if move is not None:
             row = self.__possible_moves[move][0]
             col = self.__possible_moves[move][1]
-            self.__grid[row][col].flip_to(self.__current_player)
+            self.__grid[row][col] = self.__current_player
             for effect in self.__moves_meta_data[move]:
                 for scale in range(1, effect[2]):
-                    self.__grid[row + effect[0] * scale][col + effect[1] * scale].flip_to(self.__current_player)
+                    self.__grid[row + effect[0] * scale][col + effect[1] * scale] = self.__current_player
         self.__current_player = self.opposite()
+        del self.__boundary[(row, col)]
+        for row_change in [-1, 0, 1]:
+            for col_change in [-1, 0, 1]:
+                try:
+                    if self.__grid[row + row_change][col + col_change] == self.EMPTY and (row + row_change, col + col_change) not in self.__boundary:
+                        self.__boundary[(row + row_change, col + col_change)] = 0
+                except:
+                    continue
 
     def get_board(self):
-        board = []
-        for _ in range(8):
-            board.append([0 for _ in range(8)])
-        for row in range(0, 8):
-            for col in range(0, 8):
-                board[row][col] = self.__grid[row][col].get_character()
-        return board
+        return self.__grid
 
     def win_status(self):
         black_counter = 0
         white_counter = 0
         for row in range(0, 8):
             for col in range(0, 8):
-                if self.__grid[row][col].get_character() == self.BLACK:
+                if self.__grid[row][col] == self.BLACK:
                     black_counter += 1
-                elif self.__grid[row][col].get_character() == self.WHITE:
+                elif self.__grid[row][col] == self.WHITE:
                     white_counter += 1
         if black_counter > white_counter:
             return self.BLACK
@@ -315,20 +326,10 @@ class Board:
             return self.WHITE
 
 
-class Piece:
-    def __init__(self, character):
-        self.__character = character
-
-    def flip_to(self, character):
-        self.__character = character
-
-    def get_character(self):
-        return self.__character
-
-
 def main():
     UI()
 
 
 if __name__ == "__main__":
-    main()
+    g = GameMode()
+    run("g.get_ai_move(g.possible_player_moves())")
