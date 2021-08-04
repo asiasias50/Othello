@@ -11,11 +11,8 @@ class GameMode:
     def possible_character(self):
         return self.__Board.POSSIBLE
 
-    def black_character(self):
-        return self.__Board.BLACK
-
-    def white_character(self):
-        return self.__Board.WHITE
+    def characters(self):
+        return [self.__Board.BLACK, self.__Board.WHITE]
 
     def win_status(self):
         return self.__Board.win_status()
@@ -25,6 +22,9 @@ class GameMode:
 
     def get_current_player(self):
         return self.__Board.get_current_player()
+
+    def get_number_of_pieces(self):
+        return self.__Board.get_number_of_pieces()
 
     def get_ai_move(self, possible_moves):
         scores = []
@@ -140,20 +140,17 @@ class Board:
             move_effects = []
             for row_change in [-1, 0, 1]:
                 for col_change in [-1, 0, 1]:
-                    if not (row_change == 0 and col_change == 0):
-                        try:
-                            if self.__grid[row + row_change][col + col_change] == self.__opponents[self.__current_player]:
-                                scale = 2
-                                same_piece_found = False
-                                while self.__grid[row + row_change * scale][col + col_change * scale] != self.EMPTY and not same_piece_found:
-                                    if self.__grid[row + row_change * scale][col + col_change * scale] == self.__current_player:
-                                        same_piece_found = True
-                                        break
-                                    scale += 1
-                                if same_piece_found:
-                                    move_effects.append([row_change, col_change, scale])
-                        except:
-                            continue
+                    if not (row_change == 0 and col_change == 0) and 0 <= row + row_change < 8 and 0 <= col + col_change < 8:
+                        if self.__grid[row + row_change][col + col_change] == self.__opponents[self.__current_player]:
+                            scale = 2
+                            same_piece_found = False
+                            while 0 <= row + row_change * scale < 8 and 0 <= col + col_change * scale < 8 and self.__grid[row + row_change * scale][col + col_change * scale] != self.EMPTY and not same_piece_found:
+                                if self.__grid[row + row_change * scale][col + col_change * scale] == self.__current_player:
+                                    same_piece_found = True
+                                    break
+                                scale += 1
+                            if same_piece_found:
+                                move_effects.append([row_change, col_change, scale])
             if len(move_effects) != 0:
                 self.__possible_moves.append([row, col])
                 self.__moves_meta_data.append(move_effects)
@@ -179,12 +176,9 @@ class Board:
             del self.__boundary[(row, col)]
             for row_change in [-1, 0, 1]:
                 for col_change in [-1, 0, 1]:
-                    try:
-                        if self.__grid[row + row_change][col + col_change] == self.EMPTY and (
-                        row + row_change, col + col_change) not in self.__boundary:
+                    if 0 <= row + row_change < 8 and 0 <= col + col_change < 8:
+                        if self.__grid[row + row_change][col + col_change] == self.EMPTY and (row + row_change, col + col_change) not in self.__boundary:
                             self.__boundary[(row + row_change, col + col_change)] = 0
-                    except:
-                        continue
         self.__current_player = self.__opponents[self.__current_player]
 
     def get_board(self):
@@ -205,3 +199,14 @@ class Board:
             return "Draw"
         else:
             return self.WHITE
+
+    def get_number_of_pieces(self):
+        black_count = 0
+        while_count = 0
+        for row in range(0, 8):
+            for col in range(0, 8):
+                if self.__grid[row][col] == self.BLACK:
+                    black_count += 1
+                elif self.__grid[row][col] == self.WHITE:
+                    while_count += 1
+        return [black_count, while_count]
