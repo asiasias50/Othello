@@ -1,7 +1,7 @@
 from pickle import dump, load
 from Game import GameMode
 import pygame
-from time import sleep
+from time import time
 from cProfile import run
 
 
@@ -235,7 +235,7 @@ class GUI:
                 self.__screen.blit(button_surface, ((self.WINDOW_SIZE - button_surface.get_rect().width) // 2, initial_y_pos + index * step))
             pygame.display.update()
 
-    def __display_game_board(self, board, possible_moves, current_player, characters, counters, win_status):
+    def __display_game_board(self, board, possible_moves, current_player, characters, counters, timers, win_status):
         # Constants
         initial_pos_xy = 100
         board_side = 600
@@ -253,6 +253,10 @@ class GUI:
         black_count_surface = counter_font.render(f"X{counters[0]}", False, black)
         white_count_surface = counter_font.render(f"X{counters[1]}", False, white)
 
+        # Timer constants
+        timer_font = pygame.font.SysFont("Open Sans", 70)
+        start_time = int(time())
+
         # Main loop
         while True:
             self.__screen.fill(self.BACKGROUND)
@@ -266,7 +270,10 @@ class GUI:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     for move in possible_moves:
                         if (mouse_pos[0] - (offset + step_in_pixels * move[1])) ** 2 + (mouse_pos[1] - (offset + step_in_pixels * move[0])) ** 2 <= piece_radius ** 2:
-                            return possible_moves.index(move)
+                            if timers[0] is not None:
+                                return [possible_moves.index(move), black_timer, white_timer]
+                            else:
+                                return [possible_moves.index(move), None, None]
 
             # Update cycle
             pygame.draw.rect(self.__screen, green_board, (initial_pos_xy, initial_pos_xy, board_side, board_side))
@@ -285,6 +292,33 @@ class GUI:
             self.__screen.blit(black_count_surface, (offset + step_in_pixels - 35, offset + step_in_pixels * 8 - 15))
             pygame.draw.circle(self.__screen, white, (offset + step_in_pixels * 6, offset + step_in_pixels * 8), piece_radius)
             self.__screen.blit(white_count_surface, (offset + step_in_pixels * 7 - 35, offset + step_in_pixels * 8 - 15))
+
+            # Timers
+            if timers[0] is not None:
+                black_timer = timers[0]
+                white_timer = timers[1]
+                if current_player == characters[0]:
+                    black_timer = timers[0] - (int(time()) - start_time)
+                else:
+                    white_timer = timers[1] - (int(time()) - start_time)
+                black_timer_text = f"{black_timer // 60}:"
+                if black_timer % 60 < 10:
+                    black_timer_text += f"0"
+                black_timer_text += f"{black_timer % 60}"
+                white_timer_text = f"{white_timer // 60}:"
+                if white_timer % 60 < 10:
+                    white_timer_text += f"0"
+                white_timer_text += f"{white_timer % 60}"
+                black_timer_surface = counter_font.render(black_timer_text, False, black)
+                white_timer_surface = counter_font.render(white_timer_text, False, white)
+                pygame.draw.circle(self.__screen, black, (offset, offset - step_in_pixels), piece_radius)
+                self.__screen.blit(black_timer_surface, (offset + step_in_pixels - 35, offset - step_in_pixels - 15))
+                pygame.draw.circle(self.__screen, white, (offset + step_in_pixels * 6, offset - step_in_pixels), piece_radius)
+                self.__screen.blit(white_timer_surface, (offset + step_in_pixels * 7 - 35, offset - step_in_pixels - 15))
+                if black_timer <= 0:
+                    return characters[0]
+                elif white_timer <= 0:
+                    return characters[1]
 
             if win_status is not None:
                 if win_status == "Draw":
@@ -332,22 +366,28 @@ class GUI:
             self.__screen.blit(message_surface, ((self.WINDOW_SIZE - message_surface.get_rect().width) / 2, (self.WINDOW_SIZE - message_surface.get_rect().height) / 2))
             pygame.display.update()
 
-    def __game_cycle(self, game):
+    def __game_cycle(self, game, timer):
+        timers = [timer, timer, int(time())]
+        character_relation = {game.characters()[0]: "Black", game.characters()[1]: "White", "Draw": "Draw"}
         no_moves_flag = False
         while True:
             possible_moves = game.possible_player_moves()
             if len(possible_moves) == 0:
                 if no_moves_flag:
-                    character_relation = {game.characters()[0]: "Black", game.characters()[1]: "White"}
-                    self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), character_relation[game.win_status()])
+                    self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), timers, character_relation[game.win_status()])
                     break
                 else:
                     no_moves_flag = True
                     game.play(None)
             else:
                 no_moves_flag = False
-                move = self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), None)
-                game.play(move)
+                move_and_timers = self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), timers, None)
+                if isinstance(move_and_timers, list):
+                    game.play(move_and_timers[0])
+                    timers = [move_and_timers[1], move_and_timers[2], timers[2]]
+                else:
+                    self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), timers, character_relation[game.win_status()])
+                    break
 
     def __resume_game(self):
         try:
@@ -427,7 +467,10 @@ class GUI:
                         timer_flag = not timer_flag
                     elif start_button_pos_x <= mouse_pos[0] <= start_button_pos_x + start_surface.get_rect().width and start_button_pos_y <= mouse_pos[1] <= start_button_pos_y + start_surface.get_rect().height:
                         game = GameMode()
-                        self.__game_cycle(game)
+                        if timer_flag:
+                            self.__game_cycle(game, timer)
+                        else:
+                            self.__game_cycle(game, None)
                         return None
                     elif timer_flag and self.__screen.get_at(mouse_pos) == (black[0], black[1], black[2], 255):
                         initial_triangle_y = (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 5
