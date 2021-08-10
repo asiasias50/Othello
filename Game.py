@@ -26,12 +26,12 @@ class GameMode:
     def get_number_of_pieces(self):
         return self.__Board.get_number_of_pieces()
 
-    def get_ai_move(self, possible_moves):
+    def get_ai_move(self, possible_moves, depth):
         scores = []
         for move in range(0, len(possible_moves)):
             board = self.__Board.copy()
             board.make_a_move(move)
-            scores.append(self.__alpha_beta(board, False, 5, True, float("-inf"), float("inf")))
+            scores.append(self.__alpha_beta(board, False, depth, True, float("-inf"), float("inf")))
         return scores.index(min(scores))
 
     def __alpha_beta(self, game_state, no_moves_flag, depth, minimising_player, alpha, beta):
