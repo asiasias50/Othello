@@ -1,3 +1,6 @@
+from time import time
+
+
 class GameMode:
     def __init__(self):
         self.__Board = Board()
@@ -26,17 +29,18 @@ class GameMode:
     def get_number_of_pieces(self):
         return self.__Board.get_number_of_pieces()
 
-    def get_ai_move(self, possible_moves, depth):
+    def get_ai_move(self, possible_moves, depth, timer):
         scores = []
         for move in range(0, len(possible_moves)):
             board = self.__Board.copy()
             board.make_a_move(move)
-            scores.append(self.__alpha_beta(board, False, depth, True, float("-inf"), float("inf")))
+            scores.append(self.__alpha_beta(board, False, depth, True, float("-inf"), float("inf"), timer))
         return scores.index(min(scores))
 
-    def __alpha_beta(self, game_state, no_moves_flag, depth, minimising_player, alpha, beta):
+    def __alpha_beta(self, game_state, no_moves_flag, depth, minimising_player, alpha, beta, timer):
+        start_time = time()
         new_flag = (len(game_state.get_possible_moves()) == 0)
-        if depth == 0 or (new_flag and no_moves_flag):
+        if depth == 0 or timer <= 1 or (new_flag and no_moves_flag):
             return self.__heuristic(game_state, minimising_player)
         else:
             possible_moves = game_state.get_possible_moves()
@@ -45,7 +49,7 @@ class GameMode:
                 for move in range(0, len(possible_moves)):
                     board = game_state.copy()
                     board.make_a_move(move)
-                    result = min(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha, beta))
+                    result = min(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha, beta, timer - (time() - start_time)))
                     if result <= alpha:
                         break
                     beta = min(beta, result)
@@ -55,7 +59,7 @@ class GameMode:
                 for move in range(0, len(possible_moves)):
                     board = game_state.copy()
                     board.make_a_move(move)
-                    result = max(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha, beta))
+                    result = max(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha, beta, timer - (time() - start_time)))
                     if result >= beta:
                         break
                     alpha = max(alpha, result)

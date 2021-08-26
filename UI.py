@@ -76,7 +76,7 @@ class Terminal:
                         else:
                             self.__print_state(possible_moves)
                             input("AI is thinking. Press Enter to continue. ")
-                            move = self.__Game.get_ai_move(possible_moves)
+                            move = self.__Game.get_ai_move(possible_moves, 4, float("inf"))
                             self.__Game.play(move)
                         if ai_status:
                             ai_flip_flag = not ai_flip_flag
@@ -187,8 +187,8 @@ class GUI:
         # Game Loop
         while True:
             # Events handling
+            mouse_pos = pygame.mouse.get_pos()
             for event in pygame.event.get():
-                mouse_pos = pygame.mouse.get_pos()
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     quit()
@@ -225,13 +225,13 @@ class GUI:
                             event_functions[index]()
 
             # Update cycle
-            lables = ["Resume", "PvP", "PvAI", "Load"]
+            labels = ["Resume", "PvP", "PvAI", "Load"]
             for index in range(0, 4):
                 if center <= mouse_pos[0] <= center + button_width and initial_y_pos + index * step <= mouse_pos[1] <= initial_y_pos + index * step + button_height:
                     pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (center, initial_y_pos + index * step, button_width, button_height))
                 else:
                     pygame.draw.rect(self.__screen, self.BUTTONS, (center, initial_y_pos + index * step, button_width, button_height))
-                button_surface = button_font.render(lables[index], False, text_colour)
+                button_surface = button_font.render(labels[index], False, text_colour)
                 self.__screen.blit(button_surface, ((self.WINDOW_SIZE - button_surface.get_rect().width) // 2, initial_y_pos + index * step))
             pygame.display.update()
 
@@ -418,7 +418,11 @@ class GUI:
                 else:
                     start_time = int(time())
                     self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], None, ai_flip_flag)
-                    move = game.get_ai_move(possible_moves, ai_difficulty * 2 + 1)
+                    if timers[0] is not None:
+                        move = game.get_ai_move(possible_moves, ai_difficulty * 2 + 1, timers[player_is_first])
+                        timers[player_is_first] -= (int(time()) - start_time)
+                    else:
+                        move = game.get_ai_move(possible_moves, ai_difficulty * 2 + 1, float("inf"))
                     game.play(move)
                 if ai_status:
                     ai_flip_flag = not ai_flip_flag
@@ -502,9 +506,9 @@ class GUI:
                     elif start_button_pos_x <= mouse_pos[0] <= start_button_pos_x + start_surface.get_rect().width and start_button_pos_y <= mouse_pos[1] <= start_button_pos_y + start_surface.get_rect().height:
                         game = GameMode()
                         if timer_flag:
-                            self.__game_cycle(game, timer, False, True)
+                            self.__game_cycle(game, timer, False, True, None)
                         else:
-                            self.__game_cycle(game, None, False, True)
+                            self.__game_cycle(game, None, False, True, None)
                         return None
                     elif timer_flag and self.__screen.get_at(mouse_pos) == (black[0], black[1], black[2], 255):
                         initial_triangle_y = (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 5
