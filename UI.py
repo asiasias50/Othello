@@ -149,20 +149,19 @@ class Terminal:
 
 
 class GUI:
-    WINDOW_SIZE = 800
+    WINDOW_SIZE = (800, 800)
+    DEFAULT_SIZE = 800
+    RESIZE_COEFFICIENT = (1, 1)
     BACKGROUND = (165, 0, 7)
     BUTTONS = (100, 0, 7)
     BUTTONS_HOVER = (20, 0, 0)
 
     def __init__(self):
         pygame.init()
-        self.__screen = pygame.display.set_mode((self.WINDOW_SIZE, self.WINDOW_SIZE))
+        self.__screen = pygame.display.set_mode((self.WINDOW_SIZE[0], self.WINDOW_SIZE[1]), pygame.RESIZABLE)
         self.__run_gui()
 
     def __run_gui(self):
-        # Initialization
-        self.__screen.fill(self.BACKGROUND)
-
         # Captions
         pygame.display.set_caption("Othello")
         try:
@@ -174,20 +173,29 @@ class GUI:
         logo_font = pygame.font.SysFont("Open Sans", 200)
         text_colour = (0, 165, 158)
         logo_surface = logo_font.render("Othello", False, text_colour)
-        self.__screen.blit(logo_surface, ((self.WINDOW_SIZE - logo_surface.get_rect().width) // 2, 0))
 
         # Buttons
         button_font = pygame.font.SysFont("Open Sans", 80)
         button_surface = button_font.render("PLAY", False, text_colour)
         button_width = 300
         button_height = 50
-        play_button_pos_x = (self.WINDOW_SIZE - button_width) // 2
-        play_button_pos_y = logo_surface.get_rect().height + 50
 
         # Game Loop
         while True:
-            # Events handling
+            # Update cycle
             mouse_pos = pygame.mouse.get_pos()
+            play_button_pos_x = (self.WINDOW_SIZE[0] - button_width) // 2
+            play_button_pos_y = logo_surface.get_rect().height + 50 * self.RESIZE_COEFFICIENT[1]
+            self.__screen.fill(self.BACKGROUND)
+            self.__screen.blit(logo_surface, ((self.WINDOW_SIZE[0] - logo_surface.get_rect().width) // 2, 0))
+            if play_button_pos_x <= mouse_pos[0] <= play_button_pos_x + button_width and play_button_pos_y <= mouse_pos[1] <= play_button_pos_y + button_height:
+                pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (play_button_pos_x, play_button_pos_y, button_width, button_height))
+            else:
+                pygame.draw.rect(self.__screen, self.BUTTONS, (play_button_pos_x, play_button_pos_y, button_width, button_height))
+            self.__screen.blit(button_surface, ((self.WINDOW_SIZE[0] - button_surface.get_rect().width) // 2, play_button_pos_y))
+            pygame.display.update()
+
+            # Events handling
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -195,23 +203,32 @@ class GUI:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if play_button_pos_x <= mouse_pos[0] <= play_button_pos_x + button_width and play_button_pos_y <= mouse_pos[1] <= play_button_pos_y + button_height:
                         self.__run_play_menu(button_width, button_height, button_font, text_colour)
-
-            # Update cycle
-            if play_button_pos_x <= mouse_pos[0] <= play_button_pos_x + button_width and play_button_pos_y <= mouse_pos[1] <= play_button_pos_y + button_height:
-                pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (play_button_pos_x, play_button_pos_y, button_width, button_height))
-            else:
-                pygame.draw.rect(self.__screen, self.BUTTONS, (play_button_pos_x, play_button_pos_y, button_width, button_height))
-            self.__screen.blit(button_surface, ((self.WINDOW_SIZE - button_surface.get_rect().width) // 2, play_button_pos_y))
-            pygame.display.update()
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE, self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __run_play_menu(self, button_width, button_height, button_font, text_colour):
-        center = (self.WINDOW_SIZE - button_width) // 2
-        initial_y_pos = 50
-        step = 2 * button_height
-
+        logo_font = pygame.font.SysFont("Open Sans", 200)
+        logo_surface = logo_font.render("Othello", False, text_colour)
         while True:
+            center = (self.WINDOW_SIZE[0] - button_width) // 2
+            initial_y_pos = 110 + 50 * self.RESIZE_COEFFICIENT[1]
+            step = button_height + button_height * self.RESIZE_COEFFICIENT[1]
+
             self.__screen.fill(self.BACKGROUND)
             mouse_pos = pygame.mouse.get_pos()
+
+            # Update cycle
+            self.__screen.blit(logo_surface, ((self.WINDOW_SIZE[0] - logo_surface.get_rect().width) // 2, 0))
+            labels = ["Resume", "PvP", "PvAI", "Load"]
+            for index in range(0, 4):
+                if center <= mouse_pos[0] <= center + button_width and initial_y_pos + index * step <= mouse_pos[1] <= initial_y_pos + index * step + button_height:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (center, initial_y_pos + index * step, button_width, button_height))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS, (center, initial_y_pos + index * step, button_width, button_height))
+                button_surface = button_font.render(labels[index], False, text_colour)
+                self.__screen.blit(button_surface, ((self.WINDOW_SIZE[0] - button_surface.get_rect().width) // 2, initial_y_pos + index * step))
+            pygame.display.update()
 
             # Events handling
             event_functions = [self.__resume_game, self.__two_player_game, self.__one_player_game, self.__load_database_game]
@@ -223,46 +240,41 @@ class GUI:
                     for index in range(0, 4):
                         if center <= mouse_pos[0] <= center + button_width and initial_y_pos + index * step <= mouse_pos[1] <= initial_y_pos + index * step + button_height:
                             event_functions[index]()
-
-            # Update cycle
-            labels = ["Resume", "PvP", "PvAI", "Load"]
-            for index in range(0, 4):
-                if center <= mouse_pos[0] <= center + button_width and initial_y_pos + index * step <= mouse_pos[1] <= initial_y_pos + index * step + button_height:
-                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (center, initial_y_pos + index * step, button_width, button_height))
-                else:
-                    pygame.draw.rect(self.__screen, self.BUTTONS, (center, initial_y_pos + index * step, button_width, button_height))
-                button_surface = button_font.render(labels[index], False, text_colour)
-                self.__screen.blit(button_surface, ((self.WINDOW_SIZE - button_surface.get_rect().width) // 2, initial_y_pos + index * step))
-            pygame.display.update()
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE, self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __display_game_board(self, board, possible_moves, current_player, characters, counters, timers, win_status, ai_disabled):
         # Constants
-        initial_pos_xy = 100
-        board_side = 600
-        step_in_pixels = 75
-        piece_radius = 34
         green_board = (0, 118, 7)
         black = (0, 0, 0)
         black_pale = (39, 39, 39)
         white = (255, 255, 255)
         white_pale = (180, 180, 180)
-        offset = initial_pos_xy + (step_in_pixels / 2)
-
-        # Counter constants
-        counter_font = pygame.font.SysFont("Open Sans", 50)
-        black_count_surface = counter_font.render(f"X{counters[0]}", False, black)
-        white_count_surface = counter_font.render(f"X{counters[1]}", False, white)
-
-        # AI constants
-        ai_font = pygame.font.SysFont("Open Sans", 80)
-        ai_message = ai_font.render("Calculating...", False, black)
-        ai_box_x = ai_message.get_rect().width + 100
-        ai_box_y = ai_message.get_rect().height + 40
-        ai_box_pos_x = (self.WINDOW_SIZE - ai_box_x) / 2
-        ai_box_pos_y = (self.WINDOW_SIZE - ai_box_y) / 2
 
         # Main loop
         while True:
+            board_side = 600 * min(self.RESIZE_COEFFICIENT)
+            initial_pos_x = (self.WINDOW_SIZE[0] - board_side) // 2
+            initial_pos_y = (self.WINDOW_SIZE[1] - board_side) // 2
+            step_in_pixels = 75 * min(self.RESIZE_COEFFICIENT)
+            piece_radius = 34 * min(self.RESIZE_COEFFICIENT)
+            offset_x = initial_pos_x + (step_in_pixels / 2)
+            offset_y = initial_pos_y + (step_in_pixels / 2)
+
+            # Counter constants
+            counter_font = pygame.font.SysFont("Open Sans", int(50 * min(self.RESIZE_COEFFICIENT)))
+            black_count_surface = counter_font.render(f"X{counters[0]}", False, black)
+            white_count_surface = counter_font.render(f"X{counters[1]}", False, white)
+
+            # AI constants
+            ai_font = pygame.font.SysFont("Open Sans", int(80 * min(self.RESIZE_COEFFICIENT)))
+            ai_message = ai_font.render("Calculating...", False, black)
+            ai_box_x = ai_message.get_rect().width + 100
+            ai_box_y = ai_message.get_rect().height + 40
+            ai_box_pos_x = (self.WINDOW_SIZE[0] - ai_box_x) / 2
+            ai_box_pos_y = (self.WINDOW_SIZE[1] - ai_box_y) / 2
+
             self.__screen.fill(self.BACKGROUND)
             mouse_pos = pygame.mouse.get_pos()
 
@@ -273,26 +285,29 @@ class GUI:
                     quit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     for move in possible_moves:
-                        if (mouse_pos[0] - (offset + step_in_pixels * move[1])) ** 2 + (mouse_pos[1] - (offset + step_in_pixels * move[0])) ** 2 <= piece_radius ** 2:
+                        if (mouse_pos[0] - (offset_x + step_in_pixels * move[1])) ** 2 + (mouse_pos[1] - (offset_y + step_in_pixels * move[0])) ** 2 <= piece_radius ** 2:
                             return possible_moves.index(move)
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE, self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
             # Update cycle
-            pygame.draw.rect(self.__screen, green_board, (initial_pos_xy, initial_pos_xy, board_side, board_side))
+            pygame.draw.rect(self.__screen, green_board, (initial_pos_x, initial_pos_y, board_side, board_side))
             for index in range(0, 9):
-                pygame.draw.line(self.__screen, black, (initial_pos_xy, initial_pos_xy + step_in_pixels * index), (initial_pos_xy + board_side, initial_pos_xy + step_in_pixels * index))
-                pygame.draw.line(self.__screen, black, (initial_pos_xy + step_in_pixels * index, initial_pos_xy), (initial_pos_xy + step_in_pixels * index, initial_pos_xy + board_side))
+                pygame.draw.line(self.__screen, black, (initial_pos_x, initial_pos_y + step_in_pixels * index), (initial_pos_x + board_side, initial_pos_y + step_in_pixels * index))
+                pygame.draw.line(self.__screen, black, (initial_pos_x + step_in_pixels * index, initial_pos_y), (initial_pos_x + step_in_pixels * index, initial_pos_y + board_side))
             for row in range(0, 8):
                 for col in range(0, 8):
                     if board[row][col] == characters[0]:
-                        pygame.draw.circle(self.__screen, black, (offset + step_in_pixels * col, offset + step_in_pixels * row), piece_radius)
+                        pygame.draw.circle(self.__screen, black, (offset_x + step_in_pixels * col, offset_y + step_in_pixels * row), piece_radius)
                     elif board[row][col] == characters[1]:
-                        pygame.draw.circle(self.__screen, white, (offset + step_in_pixels * col, offset + step_in_pixels * row), piece_radius)
+                        pygame.draw.circle(self.__screen, white, (offset_x + step_in_pixels * col, offset_y + step_in_pixels * row), piece_radius)
 
             # Piece counters
-            pygame.draw.circle(self.__screen, black, (offset, offset + step_in_pixels * 8), piece_radius)
-            self.__screen.blit(black_count_surface, (offset + step_in_pixels - 35, offset + step_in_pixels * 8 - 15))
-            pygame.draw.circle(self.__screen, white, (offset + step_in_pixels * 6, offset + step_in_pixels * 8), piece_radius)
-            self.__screen.blit(white_count_surface, (offset + step_in_pixels * 7 - 35, offset + step_in_pixels * 8 - 15))
+            pygame.draw.circle(self.__screen, black, (offset_x, offset_y + step_in_pixels * 8), piece_radius)
+            self.__screen.blit(black_count_surface, (offset_x + step_in_pixels - 35 * min(self.RESIZE_COEFFICIENT), offset_y + step_in_pixels * 8 - 15 * min(self.RESIZE_COEFFICIENT)))
+            pygame.draw.circle(self.__screen, white, (offset_x + step_in_pixels * 6, offset_y + step_in_pixels * 8), piece_radius)
+            self.__screen.blit(white_count_surface, (offset_x + step_in_pixels * 7 - 35 * min(self.RESIZE_COEFFICIENT), offset_y + step_in_pixels * 8 - 15 * min(self.RESIZE_COEFFICIENT)))
 
             # Timers
             if timers[0] is not None:
@@ -318,37 +333,37 @@ class GUI:
                     white_timer_text += f"{white_timer % 60}"
                 black_timer_surface = counter_font.render(black_timer_text, False, black)
                 white_timer_surface = counter_font.render(white_timer_text, False, white)
-                pygame.draw.circle(self.__screen, black, (offset, offset - step_in_pixels), piece_radius)
-                self.__screen.blit(black_timer_surface, (offset + step_in_pixels - 35, offset - step_in_pixels - 15))
-                pygame.draw.circle(self.__screen, white, (offset + step_in_pixels * 6, offset - step_in_pixels), piece_radius)
-                self.__screen.blit(white_timer_surface, (offset + step_in_pixels * 7 - 35, offset - step_in_pixels - 15))
+                pygame.draw.circle(self.__screen, black, (offset_x, offset_y - step_in_pixels), piece_radius)
+                self.__screen.blit(black_timer_surface, (offset_x + step_in_pixels - 35 * min(self.RESIZE_COEFFICIENT), offset_y - step_in_pixels - 15 * min(self.RESIZE_COEFFICIENT)))
+                pygame.draw.circle(self.__screen, white, (offset_x + step_in_pixels * 6, offset_y - step_in_pixels), piece_radius)
+                self.__screen.blit(white_timer_surface, (offset_x + step_in_pixels * 7 - 35 * min(self.RESIZE_COEFFICIENT), offset_y - step_in_pixels - 15 * min(self.RESIZE_COEFFICIENT)))
 
             if win_status is not None:
                 if win_status == "Draw":
                     message = win_status
                 else:
                     message = f"{win_status} won"
-                self.__show_message(message)
+                self.__show_message(message, False)
                 return None
             else:
                 if len(possible_moves) == 0:
-                    self.__show_message("No moves")
+                    self.__show_message("No moves", False)
                     return None
                 else:
                     for move in possible_moves:
-                        if (mouse_pos[0] - (offset + step_in_pixels * move[1])) ** 2 + (mouse_pos[1] - (offset + step_in_pixels * move[0])) ** 2 <= piece_radius ** 2:
+                        if (mouse_pos[0] - (offset_x + step_in_pixels * move[1])) ** 2 + (mouse_pos[1] - (offset_y + step_in_pixels * move[0])) ** 2 <= piece_radius ** 2:
                             if current_player == characters[0]:
-                                pygame.draw.circle(self.__screen, black_pale, (offset + step_in_pixels * move[1], offset + step_in_pixels * move[0]), piece_radius)
+                                pygame.draw.circle(self.__screen, black_pale, (offset_x + step_in_pixels * move[1], offset_y + step_in_pixels * move[0]), piece_radius)
                             else:
-                                pygame.draw.circle(self.__screen, white_pale, (offset + step_in_pixels * move[1], offset + step_in_pixels * move[0]), piece_radius)
+                                pygame.draw.circle(self.__screen, white_pale, (offset_x + step_in_pixels * move[1], offset_y + step_in_pixels * move[0]), piece_radius)
                         else:
-                            pygame.draw.circle(self.__screen, black, (offset + step_in_pixels * move[1], offset + step_in_pixels * move[0]), piece_radius, 1)
-                            pygame.draw.circle(self.__screen, black, (offset + step_in_pixels * move[1], offset + step_in_pixels * move[0]), piece_radius - 5, 1)
+                            pygame.draw.circle(self.__screen, black, (offset_x + step_in_pixels * move[1], offset_y + step_in_pixels * move[0]), piece_radius, 1)
+                            pygame.draw.circle(self.__screen, black, (offset_x + step_in_pixels * move[1], offset_y + step_in_pixels * move[0]), piece_radius - 5, 1)
 
             # AI message
             if not ai_disabled:
                 pygame.draw.rect(self.__screen, self.BACKGROUND, (ai_box_pos_x, ai_box_pos_y, ai_box_x, ai_box_y))
-                self.__screen.blit(ai_message, ((self.WINDOW_SIZE - ai_message.get_rect().width) / 2, (self.WINDOW_SIZE - ai_message.get_rect().height) / 2))
+                self.__screen.blit(ai_message, ((self.WINDOW_SIZE[0] - ai_message.get_rect().width) / 2, (self.WINDOW_SIZE[1] - ai_message.get_rect().height) / 2))
                 pygame.display.update()
                 return None
 
@@ -358,7 +373,7 @@ class GUI:
             if timers[0] is not None and (black_timer <= 0 or white_timer <= 0):
                 return None
 
-    def __show_message(self, text):
+    def __show_message(self, text, fill):
         message_colour = (194, 0, 0)
         box_colour = (0, 0, 0)
         message_font = pygame.font.SysFont("Open Sans", 80)
@@ -372,13 +387,18 @@ class GUI:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     quit()
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                elif event.type == pygame.MOUSEBUTTONDOWN:
                     return None
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE, self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
             # Message
+            if fill:
+                self.__screen.fill(self.BACKGROUND)
             pygame.draw.rect(self.__screen, box_colour, (
-            (self.WINDOW_SIZE - message_box_x) / 2, (self.WINDOW_SIZE - message_box_y) / 2, message_box_x, message_box_y))
-            self.__screen.blit(message_surface, ((self.WINDOW_SIZE - message_surface.get_rect().width) / 2, (self.WINDOW_SIZE - message_surface.get_rect().height) / 2))
+            (self.WINDOW_SIZE[0] - message_box_x) / 2, (self.WINDOW_SIZE[1] - message_box_y) / 2, message_box_x, message_box_y))
+            self.__screen.blit(message_surface, ((self.WINDOW_SIZE[0] - message_surface.get_rect().width) / 2, (self.WINDOW_SIZE[1] - message_surface.get_rect().height) / 2))
             pygame.display.update()
 
     def __game_cycle(self, game, timer, ai_status, player_is_first, ai_difficulty):
@@ -434,7 +454,7 @@ class GUI:
             game = load(f)
             self.__game_cycle(game)
         except IOError:
-            self.__show_message("Game cannot be loaded")
+            self.__show_message("Game cannot be loaded", True)
 
     def __two_player_game(self):
         timer = 300
@@ -444,20 +464,21 @@ class GUI:
         pale_green = (0, 123, 11)
         time_text_font = pygame.font.SysFont("Open Sans", 90)
         check_box_surface = time_text_font.render("Timer Enabled", False, black)
-        text_pos_x = (self.WINDOW_SIZE - check_box_surface.get_rect().width) / 2 + 50
-        text_pos_y = (self.WINDOW_SIZE - check_box_surface.get_rect().height) / 2 - 150
-        box_pos_x = text_pos_x - 70
-        box_pos_y = text_pos_y
         outer_box_size = 50
         inner_box_size = 40
         timer_font = pygame.font.SysFont("Open Sans", 150)
         start_font = pygame.font.SysFont("Open Sans", 100)
         start_colour = (0, 165, 158)
         start_surface = start_font.render("Start", False, start_colour)
-        start_button_pos_x = 550
-        start_button_pos_y = 550
 
         while True:
+            text_pos_x = (self.WINDOW_SIZE[0] - check_box_surface.get_rect().width) / 2 + 50
+            text_pos_y = (self.WINDOW_SIZE[1] - check_box_surface.get_rect().height) / 2 - 150
+            box_pos_x = text_pos_x - 70
+            box_pos_y = text_pos_y
+            start_button_pos_x = text_pos_x + 300
+            start_button_pos_y = text_pos_y + 300
+
             self.__screen.fill(self.BACKGROUND)
             mouse_pos = pygame.mouse.get_pos()
 
@@ -476,16 +497,16 @@ class GUI:
                     timer_text += f"0"
                 timer_text += f"{timer % 60}"
                 timer_surface = timer_font.render(timer_text, False, black)
-                self.__screen.blit(timer_surface, ((self.WINDOW_SIZE - timer_surface.get_rect().width) // 2, (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 10))
-                initial_triangle_x = (self.WINDOW_SIZE - timer_surface.get_rect().width) // 2
-                initial_triangle_y = (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 5
+                self.__screen.blit(timer_surface, ((self.WINDOW_SIZE[0] - timer_surface.get_rect().width) // 2, (self.WINDOW_SIZE[1] - timer_surface.get_rect().height) // 2 + 10))
+                initial_triangle_x = (self.WINDOW_SIZE[0] - timer_surface.get_rect().width) // 2
+                initial_triangle_y = (self.WINDOW_SIZE[1] - timer_surface.get_rect().height) // 2 + 5
                 step = 68
                 offset = 150
                 for index in range(0, 2):
                     pygame.draw.polygon(self.__screen, black, ((initial_triangle_x + step * index, initial_triangle_y), (initial_triangle_x + step * index + 52, initial_triangle_y), (initial_triangle_x + step * index + 26, initial_triangle_y - 45)))
                 for index in range(0, 2):
                     pygame.draw.polygon(self.__screen, black, ((initial_triangle_x + step * index + offset, initial_triangle_y), (initial_triangle_x + step * index + offset + 52, initial_triangle_y), (initial_triangle_x + step * index + offset + 26, initial_triangle_y - 45)))
-                initial_triangle_y = (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 117
+                initial_triangle_y = (self.WINDOW_SIZE[1] - timer_surface.get_rect().height) // 2 + 117
                 for index in range(0, 2):
                     pygame.draw.polygon(self.__screen, black, ((initial_triangle_x + step * index, initial_triangle_y), (initial_triangle_x + step * index + 52, initial_triangle_y), (initial_triangle_x + step * index + 26, initial_triangle_y + 45)))
                 for index in range(0, 2):
@@ -511,14 +532,14 @@ class GUI:
                             self.__game_cycle(game, None, False, True, None)
                         return None
                     elif timer_flag and self.__screen.get_at(mouse_pos) == (black[0], black[1], black[2], 255):
-                        initial_triangle_y = (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 5
+                        initial_triangle_y = (self.WINDOW_SIZE[1] - timer_surface.get_rect().height) // 2 + 5
                         for index in range(0, 2):
                             if initial_triangle_x + step * index <= mouse_pos[0] <= initial_triangle_x + step * index + 52 and initial_triangle_y - 45 <= mouse_pos[1] <= initial_triangle_y:
                                 timer += 60 * 10 ** (1 - index)
                         for index in range(0, 2):
                             if initial_triangle_x + step * index + offset <= mouse_pos[0] <= initial_triangle_x + step * index + offset + 52 and initial_triangle_y - 45 <= mouse_pos[1] <= initial_triangle_y:
                                 timer += 10 ** (1 - index)
-                        initial_triangle_y = (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 117
+                        initial_triangle_y = (self.WINDOW_SIZE[1] - timer_surface.get_rect().height) // 2 + 117
                         for index in range(0, 2):
                             if initial_triangle_x + step * index <= mouse_pos[0] <= initial_triangle_x + step * index + 52 and initial_triangle_y <= mouse_pos[1] <= initial_triangle_y + 45:
                                 timer -= 60 * 10 ** (1 - index)
@@ -526,6 +547,9 @@ class GUI:
                             if initial_triangle_x + step * index + offset <= mouse_pos[0] <= initial_triangle_x + step * index + offset + 52 and initial_triangle_y <= mouse_pos[1] <= initial_triangle_y + 45:
                                 timer -= 10 ** (1 - index)
                         timer %= 3600
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE, self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __one_player_game(self):
         timer = 300
@@ -541,23 +565,6 @@ class GUI:
         who_starts_surface = time_text_font.render("Who starts?", False, black)
         difficulty_surface = time_text_font.render("Difficulty:", False, black)
         difficulties = ["Easy", "Normal", "Hard"]
-        timer_text_pos_x = (self.WINDOW_SIZE - timer_check_box_surface.get_rect().width) / 2 + 50
-        timer_text_pos_y = (self.WINDOW_SIZE - timer_check_box_surface.get_rect().height) / 2 + 50
-        ai_text_pos_x = timer_text_pos_x + 371
-        ai_text_pos_y = timer_text_pos_y - 100
-        player_text_pos_x = timer_text_pos_x
-        player_text_pos_y = timer_text_pos_y - 100
-        timer_box_x = timer_text_pos_x - 70
-        timer_box_y = timer_text_pos_y
-        player_box_x = timer_box_x
-        player_box_y = timer_box_y - 100
-        ai_box_x = timer_box_x + 371
-        ai_box_y = timer_box_y - 100
-        who_starts_x = player_box_x
-        who_starts_y = player_box_y - 90
-        difficulty_x = who_starts_x
-        difficulty_y = who_starts_y - 200
-        difficulty_labels_x = [50, 270, 565]
         difficulty_value = 1
         outer_box_size = 50
         inner_box_size = 40
@@ -565,10 +572,28 @@ class GUI:
         start_font = pygame.font.SysFont("Open Sans", 100)
         start_colour = (0, 165, 158)
         start_surface = start_font.render("Start", False, start_colour)
-        start_button_pos_x = 550
-        start_button_pos_y = 625
 
         while True:
+            timer_text_pos_x = (self.WINDOW_SIZE[0] - timer_check_box_surface.get_rect().width) / 2 + 50
+            timer_text_pos_y = (self.WINDOW_SIZE[1] - timer_check_box_surface.get_rect().height) / 2 + 50
+            ai_text_pos_x = timer_text_pos_x + 371
+            ai_text_pos_y = timer_text_pos_y - 100
+            player_text_pos_x = timer_text_pos_x
+            player_text_pos_y = timer_text_pos_y - 100
+            timer_box_x = timer_text_pos_x - 70
+            timer_box_y = timer_text_pos_y
+            player_box_x = timer_box_x
+            player_box_y = timer_box_y - 100
+            ai_box_x = timer_box_x + 371
+            ai_box_y = timer_box_y - 100
+            who_starts_x = player_box_x
+            who_starts_y = player_box_y - 90
+            difficulty_x = who_starts_x
+            difficulty_y = who_starts_y - 200
+            difficulty_labels_x = [difficulty_x - 120, difficulty_x + 100, difficulty_x + 400]
+            start_button_pos_x = self.WINDOW_SIZE[0] // 2 + 150
+            start_button_pos_y = self.WINDOW_SIZE[1] // 2 + 220
+
             self.__screen.fill(self.BACKGROUND)
             mouse_pos = pygame.mouse.get_pos()
 
@@ -600,16 +625,16 @@ class GUI:
                     timer_text += f"0"
                 timer_text += f"{timer % 60}"
                 timer_surface = timer_font.render(timer_text, False, black)
-                self.__screen.blit(timer_surface, ((self.WINDOW_SIZE - timer_surface.get_rect().width) // 2, (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 185))
-                initial_triangle_x = (self.WINDOW_SIZE - timer_surface.get_rect().width) // 2
-                initial_triangle_y = (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 180
+                self.__screen.blit(timer_surface, ((self.WINDOW_SIZE[0] - timer_surface.get_rect().width) // 2, (self.WINDOW_SIZE[1] - timer_surface.get_rect().height) // 2 + 185))
+                initial_triangle_x = (self.WINDOW_SIZE[0] - timer_surface.get_rect().width) // 2
+                initial_triangle_y = (self.WINDOW_SIZE[1] - timer_surface.get_rect().height) // 2 + 180
                 step = 68
                 offset = 150
                 for index in range(0, 2):
                     pygame.draw.polygon(self.__screen, black, ((initial_triangle_x + step * index, initial_triangle_y), (initial_triangle_x + step * index + 52, initial_triangle_y), (initial_triangle_x + step * index + 26, initial_triangle_y - 45)))
                 for index in range(0, 2):
                     pygame.draw.polygon(self.__screen, black, ((initial_triangle_x + step * index + offset, initial_triangle_y), (initial_triangle_x + step * index + offset + 52, initial_triangle_y), (initial_triangle_x + step * index + offset + 26, initial_triangle_y - 45)))
-                initial_triangle_y = (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 292
+                initial_triangle_y = (self.WINDOW_SIZE[1] - timer_surface.get_rect().height) // 2 + 292
                 for index in range(0, 2):
                     pygame.draw.polygon(self.__screen, black, ((initial_triangle_x + step * index, initial_triangle_y), (initial_triangle_x + step * index + 52,initial_triangle_y), (initial_triangle_x + step * index + 26, initial_triangle_y + 45)))
                 for index in range(0, 2):
@@ -644,14 +669,14 @@ class GUI:
                             self.__game_cycle(game, None, True, player_starts_flag, difficulty_value)
                         return None
                     elif timer_flag and self.__screen.get_at(mouse_pos) == (black[0], black[1], black[2], 255):
-                        initial_triangle_y = (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 185
+                        initial_triangle_y = (self.WINDOW_SIZE[1] - timer_surface.get_rect().height) // 2 + 185
                         for index in range(0, 2):
                             if initial_triangle_x + step * index <= mouse_pos[0] <= initial_triangle_x + step * index + 52 and initial_triangle_y - 45 <= mouse_pos[1] <= initial_triangle_y:
                                 timer += 60 * 10 ** (1 - index)
                         for index in range(0, 2):
                             if initial_triangle_x + step * index + offset <= mouse_pos[0] <= initial_triangle_x + step * index + offset + 52 and initial_triangle_y - 45 <= mouse_pos[1] <= initial_triangle_y:
                                 timer += 10 ** (1 - index)
-                        initial_triangle_y = (self.WINDOW_SIZE - timer_surface.get_rect().height) // 2 + 292
+                        initial_triangle_y = (self.WINDOW_SIZE[1] - timer_surface.get_rect().height) // 2 + 292
                         for index in range(0, 2):
                             if initial_triangle_x + step * index <= mouse_pos[0] <= initial_triangle_x + step * index + 52 and initial_triangle_y <= mouse_pos[1] <= initial_triangle_y + 45:
                                 timer -= 60 * 10 ** (1 - index)
@@ -668,6 +693,9 @@ class GUI:
                     for index in range(0, 3):
                         if difficulty_labels_x[index] <= mouse_pos[0] <= difficulty_labels_x[index] + outer_box_size and difficulty_y + 100 <= mouse_pos[1] <= difficulty_y + 100 + outer_box_size and index != difficulty_value:
                             difficulty_value = index
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE, self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __load_database_game(self):
         pass
