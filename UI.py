@@ -220,8 +220,8 @@ class GUI:
 
             # Update cycle
             self.__screen.blit(logo_surface, ((self.WINDOW_SIZE[0] - logo_surface.get_rect().width) // 2, 0))
-            labels = ["Resume", "PvP", "PvAI", "Load"]
-            for index in range(0, 4):
+            labels = ["Resume", "PvP", "PvAI", "Load", "Back"]
+            for index in range(0, len(labels)):
                 if center <= mouse_pos[0] <= center + button_width and initial_y_pos + index * step <= mouse_pos[1] <= initial_y_pos + index * step + button_height:
                     pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (center, initial_y_pos + index * step, button_width, button_height))
                 else:
@@ -237,14 +237,17 @@ class GUI:
                     pygame.quit()
                     quit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    for index in range(0, 4):
+                    for index in range(0, len(labels)):
                         if center <= mouse_pos[0] <= center + button_width and initial_y_pos + index * step <= mouse_pos[1] <= initial_y_pos + index * step + button_height:
-                            event_functions[index]()
+                            if index == len(labels) - 1:
+                                return None
+                            else:
+                                event_functions[index]()
                 elif event.type == pygame.VIDEORESIZE:
                     self.WINDOW_SIZE = pygame.display.get_surface().get_size()
                     self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE, self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
-    def __display_game_board(self, board, possible_moves, current_player, characters, counters, timers, win_status, ai_disabled):
+    def __display_game_board(self, board, possible_moves, current_player, characters, counters, timers, win_status, ai_status, ai_turn):
         # Constants
         green_board = (0, 118, 7)
         black = (0, 0, 0)
@@ -275,21 +278,14 @@ class GUI:
             ai_box_pos_x = (self.WINDOW_SIZE[0] - ai_box_x) / 2
             ai_box_pos_y = (self.WINDOW_SIZE[1] - ai_box_y) / 2
 
+            # Undo constants
+            undo_font = pygame.font.SysFont("Open Sans", 50)
+            undo_image = undo_font.render("Undo", False, black)
+            undo_x = offset_x + step_in_pixels * 2 - 23 * min(self.RESIZE_COEFFICIENT)
+            undo_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
+
             self.__screen.fill(self.BACKGROUND)
             mouse_pos = pygame.mouse.get_pos()
-
-            # Events handling
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    quit()
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    for move in possible_moves:
-                        if (mouse_pos[0] - (offset_x + step_in_pixels * move[1])) ** 2 + (mouse_pos[1] - (offset_y + step_in_pixels * move[0])) ** 2 <= piece_radius ** 2:
-                            return possible_moves.index(move)
-                elif event.type == pygame.VIDEORESIZE:
-                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
-                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE, self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
             # Update cycle
             pygame.draw.rect(self.__screen, green_board, (initial_pos_x, initial_pos_y, board_side, board_side))
@@ -302,6 +298,16 @@ class GUI:
                         pygame.draw.circle(self.__screen, black, (offset_x + step_in_pixels * col, offset_y + step_in_pixels * row), piece_radius)
                     elif board[row][col] == characters[1]:
                         pygame.draw.circle(self.__screen, white, (offset_x + step_in_pixels * col, offset_y + step_in_pixels * row), piece_radius)
+
+            # Undo button
+            if ai_status and timers[0] is None:
+                try:
+                    undo_image = pygame.image.load("Undo.svg")
+                    undo_image = pygame.transform.scale(undo_image, (
+                    int(50 * min(self.RESIZE_COEFFICIENT)), int(50 * min(self.RESIZE_COEFFICIENT))))
+                except FileNotFoundError:
+                    pass
+                self.__screen.blit(undo_image, (undo_x, undo_y))
 
             # Piece counters
             pygame.draw.circle(self.__screen, black, (offset_x, offset_y + step_in_pixels * 8), piece_radius)
@@ -361,13 +367,28 @@ class GUI:
                             pygame.draw.circle(self.__screen, black, (offset_x + step_in_pixels * move[1], offset_y + step_in_pixels * move[0]), piece_radius - 5, 1)
 
             # AI message
-            if not ai_disabled:
+            if ai_turn:
                 pygame.draw.rect(self.__screen, self.BACKGROUND, (ai_box_pos_x, ai_box_pos_y, ai_box_x, ai_box_y))
                 self.__screen.blit(ai_message, ((self.WINDOW_SIZE[0] - ai_message.get_rect().width) / 2, (self.WINDOW_SIZE[1] - ai_message.get_rect().height) / 2))
                 pygame.display.update()
                 return None
 
             pygame.display.update()
+
+            # Events handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    for move in possible_moves:
+                        if (mouse_pos[0] - (offset_x + step_in_pixels * move[1])) ** 2 + (mouse_pos[1] - (offset_y + step_in_pixels * move[0])) ** 2 <= piece_radius ** 2:
+                            return possible_moves.index(move)
+                    if ai_status and undo_x <= mouse_pos[0] <= undo_x + undo_image.get_rect().width and undo_y <= mouse_pos[1] <= undo_y + undo_image.get_rect().height and timers[0] is None:
+                        return -1
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE, self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
             # Timer check
             if timers[0] is not None and (black_timer <= 0 or white_timer <= 0):
@@ -405,39 +426,41 @@ class GUI:
         timers = [timer, timer]
         character_relation = {game.characters()[0]: "Black", game.characters()[1]: "White", "Draw": "Draw"}
         no_moves_flag = False
-        ai_flip_flag = player_is_first
+        ai_flip_flag = not player_is_first
         while True:
             possible_moves = game.possible_player_moves()
             if len(possible_moves) == 0:
                 if no_moves_flag:
-                    self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], character_relation[game.win_status()], ai_flip_flag)
+                    self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], character_relation[game.win_status()], ai_status, ai_flip_flag)
                     break
                 else:
                     no_moves_flag = True
                     game.play(None)
             else:
                 no_moves_flag = False
-                if ai_flip_flag:
+                if not ai_flip_flag:
                     start_time = int(time())
-                    move = self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], None, ai_flip_flag)
+                    move = self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], None, ai_status, ai_flip_flag)
                     if timers[0] is not None:
                         if game.get_current_player() == game.characters()[0]:
                             timers[0] -= (int(time()) - start_time)
                         else:
                             timers[1] -= (int(time()) - start_time)
                         if timers[0] <= 0:
-                            self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], character_relation[game.characters()[1]], ai_flip_flag)
+                            self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], character_relation[game.characters()[1]], ai_status, ai_flip_flag)
                             break
                         elif timers[1] <= 0:
-                            self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], character_relation[game.characters()[0]], ai_flip_flag)
+                            self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], character_relation[game.characters()[0]], ai_status, ai_flip_flag)
                             break
-                        else:
-                            game.play(move)
+                    if move == -1:
+                        game.undo_move()
+                        game.undo_move()
+                        ai_flip_flag = not ai_flip_flag
                     else:
                         game.play(move)
                 else:
                     start_time = int(time())
-                    self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], None, ai_flip_flag)
+                    self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], None, ai_status, ai_flip_flag)
                     if timers[0] is not None:
                         move = game.get_ai_move(possible_moves, ai_difficulty * 2 + 1, timers[player_is_first])
                         timers[player_is_first] -= (int(time()) - start_time)
@@ -469,7 +492,8 @@ class GUI:
         timer_font = pygame.font.SysFont("Open Sans", 150)
         start_font = pygame.font.SysFont("Open Sans", 100)
         start_colour = (0, 165, 158)
-        start_surface = start_font.render("Start", False, start_colour)
+        start_surface = start_font.render("Start", False, start_colour, self.BACKGROUND)
+        back_surface = start_font.render("Back", False, start_colour, self.BACKGROUND)
 
         while True:
             text_pos_x = (self.WINDOW_SIZE[0] - check_box_surface.get_rect().width) / 2 + 50
@@ -478,6 +502,8 @@ class GUI:
             box_pos_y = text_pos_y
             start_button_pos_x = text_pos_x + 300
             start_button_pos_y = text_pos_y + 300
+            back_button_pos_x = start_button_pos_x - 430
+            back_button_pos_y = start_button_pos_y
 
             self.__screen.fill(self.BACKGROUND)
             mouse_pos = pygame.mouse.get_pos()
@@ -487,6 +513,8 @@ class GUI:
             pygame.draw.rect(self.__screen, black, (box_pos_x, box_pos_y, outer_box_size, outer_box_size))
             pygame.draw.rect(self.__screen, black, (start_button_pos_x, start_button_pos_y, start_surface.get_rect().width, start_surface.get_rect().height))
             self.__screen.blit(start_surface, (start_button_pos_x, start_button_pos_y))
+            pygame.draw.rect(self.__screen, black, (back_button_pos_x, back_button_pos_y, back_surface.get_rect().width, back_surface.get_rect().height))
+            self.__screen.blit(back_surface, (back_button_pos_x, back_button_pos_y))
             if timer_flag:
                 pygame.draw.rect(self.__screen, green, (box_pos_x + 5, box_pos_y + 5, inner_box_size, inner_box_size))
                 timer_text = f""
@@ -524,6 +552,8 @@ class GUI:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if box_pos_x <= mouse_pos[0] <= box_pos_x + outer_box_size and box_pos_y <= mouse_pos[1] <= box_pos_y + outer_box_size:
                         timer_flag = not timer_flag
+                    elif back_button_pos_x <= mouse_pos[0] <= back_button_pos_x + back_surface.get_rect().width and back_button_pos_y <= mouse_pos[1] <= back_button_pos_y + back_surface.get_rect().height:
+                        return None
                     elif start_button_pos_x <= mouse_pos[0] <= start_button_pos_x + start_surface.get_rect().width and start_button_pos_y <= mouse_pos[1] <= start_button_pos_y + start_surface.get_rect().height:
                         game = GameMode()
                         if timer_flag:
@@ -571,7 +601,8 @@ class GUI:
         timer_font = pygame.font.SysFont("Open Sans", 150)
         start_font = pygame.font.SysFont("Open Sans", 100)
         start_colour = (0, 165, 158)
-        start_surface = start_font.render("Start", False, start_colour)
+        start_surface = start_font.render("Start", False, start_colour, self.BACKGROUND)
+        back_surface = start_font.render("Back", False, start_colour, self.BACKGROUND)
 
         while True:
             timer_text_pos_x = (self.WINDOW_SIZE[0] - timer_check_box_surface.get_rect().width) / 2 + 50
@@ -593,6 +624,8 @@ class GUI:
             difficulty_labels_x = [difficulty_x - 120, difficulty_x + 100, difficulty_x + 400]
             start_button_pos_x = self.WINDOW_SIZE[0] // 2 + 150
             start_button_pos_y = self.WINDOW_SIZE[1] // 2 + 220
+            back_button_pos_x = start_button_pos_x - 465
+            back_button_pos_y = start_button_pos_y
 
             self.__screen.fill(self.BACKGROUND)
             mouse_pos = pygame.mouse.get_pos()
@@ -606,6 +639,8 @@ class GUI:
             pygame.draw.rect(self.__screen, black, (timer_box_x, timer_box_y, outer_box_size, outer_box_size))
             pygame.draw.rect(self.__screen, black, (start_button_pos_x, start_button_pos_y, start_surface.get_rect().width, start_surface.get_rect().height))
             self.__screen.blit(start_surface, (start_button_pos_x, start_button_pos_y))
+            pygame.draw.rect(self.__screen, black, (back_button_pos_x, back_button_pos_y, back_surface.get_rect().width, back_surface.get_rect().height))
+            self.__screen.blit(back_surface, (back_button_pos_x, back_button_pos_y))
             self.__screen.blit(who_starts_surface, (who_starts_x, who_starts_y))
             self.__screen.blit(difficulty_surface, (difficulty_x, difficulty_y))
             for index in range(0, 3):
@@ -661,6 +696,8 @@ class GUI:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if timer_box_x <= mouse_pos[0] <= timer_box_x + outer_box_size and timer_box_y <= mouse_pos[1] <= timer_box_y + outer_box_size:
                         timer_flag = not timer_flag
+                    elif back_button_pos_x <= mouse_pos[0] <= back_button_pos_x + back_surface.get_rect().width and back_button_pos_y <= mouse_pos[1] <= back_button_pos_y + back_surface.get_rect().height:
+                        return None
                     elif start_button_pos_x <= mouse_pos[0] <= start_button_pos_x + start_surface.get_rect().width and start_button_pos_y <= mouse_pos[1] <= start_button_pos_y + start_surface.get_rect().height:
                         game = GameMode()
                         if timer_flag:

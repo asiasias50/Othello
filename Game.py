@@ -29,6 +29,9 @@ class GameMode:
     def get_number_of_pieces(self):
         return self.__Board.get_number_of_pieces()
 
+    def undo_move(self):
+        self.__Board.undo_move()
+
     def get_ai_move(self, possible_moves, depth, timer):
         scores = []
         for move in range(0, len(possible_moves)):
@@ -113,6 +116,7 @@ class Board:
         self.__opponents = {self.BLACK: self.WHITE, self.WHITE: self.BLACK}
         self.__possible_moves = []
         self.__moves_meta_data = []
+        self.__moves_story = []
 
     def copy(self):
         new_board = Board()
@@ -176,6 +180,9 @@ class Board:
                 for scale in range(1, effect[2]):
                     self.__grid[row + effect[0] * scale][col + effect[1] * scale] = self.__current_player
 
+            # Saving into history
+            self.__moves_story.append([row, col, self.__moves_meta_data[move]])
+
             # Boundary update
             del self.__boundary[(row, col)]
             for row_change in [-1, 0, 1]:
@@ -184,6 +191,16 @@ class Board:
                         if self.__grid[row + row_change][col + col_change] == self.EMPTY and (row + row_change, col + col_change) not in self.__boundary:
                             self.__boundary[(row + row_change, col + col_change)] = 0
         self.__current_player = self.__opponents[self.__current_player]
+
+    def undo_move(self):
+        if len(self.__moves_story) > 0:
+            move = self.__moves_story.pop()
+            for effect in move[2][::-1]:
+                for scale in range(1, effect[2]):
+                    self.__grid[move[0] + effect[0] * scale][move[1] + effect[1] * scale] = self.__current_player
+            self.__grid[move[0]][move[1]] = self.EMPTY
+            self.__current_player = self.__opponents[self.__current_player]
+            self.__boundary[(move[0], move[1])] = 0
 
     def get_board(self):
         return self.__grid
