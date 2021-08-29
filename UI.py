@@ -155,6 +155,7 @@ class GUI:
     BACKGROUND = (165, 0, 7)
     BUTTONS = (100, 0, 7)
     BUTTONS_HOVER = (20, 0, 0)
+    QUIT = "Q"
 
     def __init__(self):
         pygame.init()
@@ -284,6 +285,11 @@ class GUI:
             undo_x = offset_x + step_in_pixels * 2 - 23 * min(self.RESIZE_COEFFICIENT)
             undo_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
 
+            # Quit constants
+            quit_image = undo_font.render("Quit", False, black)
+            quit_x = offset_x + step_in_pixels * 5 - 23 * min(self.RESIZE_COEFFICIENT)
+            quit_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
+
             self.__screen.fill(self.BACKGROUND)
             mouse_pos = pygame.mouse.get_pos()
 
@@ -308,6 +314,15 @@ class GUI:
                 except FileNotFoundError:
                     pass
                 self.__screen.blit(undo_image, (undo_x, undo_y))
+
+            # Qut button
+            try:
+                quit_image = pygame.image.load("Quit.svg")
+                quit_image = pygame.transform.scale(quit_image, (
+                int(50 * min(self.RESIZE_COEFFICIENT)), int(50 * min(self.RESIZE_COEFFICIENT))))
+            except FileNotFoundError:
+                pass
+            self.__screen.blit(quit_image, (quit_x, quit_y))
 
             # Piece counters
             pygame.draw.circle(self.__screen, black, (offset_x, offset_y + step_in_pixels * 8), piece_radius)
@@ -386,6 +401,8 @@ class GUI:
                             return possible_moves.index(move)
                     if ai_status and undo_x <= mouse_pos[0] <= undo_x + undo_image.get_rect().width and undo_y <= mouse_pos[1] <= undo_y + undo_image.get_rect().height and timers[0] is None:
                         return -1
+                    elif quit_x <= mouse_pos[0] <= quit_x + quit_image.get_rect().width and quit_y <= mouse_pos[1] <= quit_y + quit_image.get_rect().height:
+                        return self.QUIT
                 elif event.type == pygame.VIDEORESIZE:
                     self.WINDOW_SIZE = pygame.display.get_surface().get_size()
                     self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE, self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
@@ -452,7 +469,9 @@ class GUI:
                         elif timers[1] <= 0:
                             self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(), game.characters(), game.get_number_of_pieces(), [timers[0], timers[1], start_time], character_relation[game.characters()[0]], ai_status, ai_flip_flag)
                             break
-                    if move == -1:
+                    if move == self.QUIT:
+                        return None
+                    elif move == -1:
                         game.undo_move()
                         game.undo_move()
                         ai_flip_flag = not ai_flip_flag
