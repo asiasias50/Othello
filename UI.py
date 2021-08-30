@@ -310,7 +310,7 @@ class GUI:
                 try:
                     undo_image = pygame.image.load("Undo.svg")
                     undo_image = pygame.transform.scale(undo_image, (
-                    int(50 * min(self.RESIZE_COEFFICIENT)), int(50 * min(self.RESIZE_COEFFICIENT))))
+                    int(65 * min(self.RESIZE_COEFFICIENT)), int(65 * min(self.RESIZE_COEFFICIENT))))
                 except FileNotFoundError:
                     pass
                 self.__screen.blit(undo_image, (undo_x, undo_y))
@@ -763,5 +763,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # g = GameMode()
-    # run("g.get_ai_move(g.possible_player_moves())")
+    g = GameMode()
+    run("g.get_ai_move(g.possible_player_moves(), 6, float(\'inf\'))")

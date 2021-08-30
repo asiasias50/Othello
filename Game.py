@@ -35,8 +35,8 @@ class GameMode:
     def get_ai_move(self, possible_moves, depth, timer):
         scores = []
         for move in range(0, len(possible_moves)):
-            board = self.__Board.copy()
-            board.make_a_move(move)
+            board = self.__Board.copy(move)
+            board.make_a_move(0)
             scores.append(self.__alpha_beta(board, False, depth, True, float("-inf"), float("inf"), timer))
         return scores.index(min(scores))
 
@@ -50,8 +50,8 @@ class GameMode:
             if minimising_player:
                 result = float("inf")
                 for move in range(0, len(possible_moves)):
-                    board = game_state.copy()
-                    board.make_a_move(move)
+                    board = game_state.copy(move)
+                    board.make_a_move(0)
                     result = min(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha, beta, timer - (time() - start_time)))
                     if result <= alpha:
                         break
@@ -60,8 +60,8 @@ class GameMode:
             else:
                 result = float("-inf")
                 for move in range(0, len(possible_moves)):
-                    board = game_state.copy()
-                    board.make_a_move(move)
+                    board = game_state.copy(move)
+                    board.make_a_move(0)
                     result = max(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha, beta, timer - (time() - start_time)))
                     if result >= beta:
                         break
@@ -118,7 +118,7 @@ class Board:
         self.__moves_meta_data = []
         self.__moves_story = []
 
-    def copy(self):
+    def copy(self, move):
         new_board = Board()
         for row in range(0, 8):
             for col in range(0, 8):
@@ -126,13 +126,8 @@ class Board:
         for key in self.__boundary:
             new_board.__boundary[key] = self.__boundary[key]
         new_board.__current_player = self.__current_player
-        for move in self.__possible_moves:
-            new_board.__possible_moves.append([move[0], move[1]])
-        for data in self.__moves_meta_data:
-            new_effects = []
-            for effect in data:
-                new_effects.append([effect[0], effect[1], effect[2]])
-            new_board.__moves_meta_data.append(new_effects)
+        new_board.__possible_moves.append(self.__possible_moves[move])
+        new_board.__moves_meta_data.append(self.__moves_meta_data[move])
         return new_board
 
     def __initialise_boundary(self):
