@@ -21,4 +21,4 @@ class Client:
 
 if __name__ == '__main__':
     c = Client()
-    print(c.sign_in("sum", "yyyIII"))
+    print(c.create_account("sam", "123456"))
