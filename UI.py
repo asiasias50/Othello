@@ -8,16 +8,15 @@ from cProfile import run
 class UI:
     def __init__(self):
         self.__UI_mode = None
-        self.__UI = None
         self.__initialize_ui()
 
     def __initialize_ui(self):
         while self.__UI_mode not in ["t", "g"]:
             self.__UI_mode = input("Enter \'t\' to use terminal or \'g\' to use GUI. ")
         if self.__UI_mode == "t":
-            self.__UI = Terminal()
+            Terminal()
         elif self.__UI_mode == "g":
-            self.__UI = GUI()
+            GUI()
 
 
 class Terminal:
