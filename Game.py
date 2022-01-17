@@ -1,11 +1,12 @@
 from time import time
 
 
-class GameMode:
-    def __init__(self):
+class GameMode:  # Class provides relevant interface for fluent game flow and Artificial Intelligence algorithm
+    def __init__(self):  # Initialises a game board on which all further manipulations will take place
         self.__Board = Board()
 
     def play(self, move):
+        # Further block of functions filters only relevant to game flow functions provided by Board class
         self.__Board.make_a_move(move)
 
     def possible_player_moves(self):
@@ -33,14 +34,16 @@ class GameMode:
         self.__Board.undo_move()
 
     def get_ai_move(self, possible_moves, depth, timer):
+        # Minimax Algorithm with alpha beta pruning is used to find an optimal move for given board
         scores = []
         for move in range(0, len(possible_moves)):
             board = self.__Board.copy(move)
             board.make_a_move(0)
             scores.append(self.__alpha_beta(board, False, depth, True, float("-inf"), float("inf"), timer))
-        return scores.index(min(scores))
+        return scores.index(min(scores))  # Algorithm returns an index of best move to make
 
     def __alpha_beta(self, game_state, no_moves_flag, depth, minimising_player, alpha, beta, timer):
+        # Group A skill, Optimisation algorithm
         start_time = time()
         new_flag = (len(game_state.get_possible_moves()) == 0)
         if depth == 0 or timer <= 1 or (new_flag and no_moves_flag):
@@ -49,20 +52,24 @@ class GameMode:
             possible_moves = game_state.get_possible_moves()
             if minimising_player:
                 result = float("inf")
-                for move in range(0, len(possible_moves)):
-                    board = game_state.copy(move)
+                for move in range(0, len(possible_moves)):  # Group A skill, Tree Traversal
+                    board = game_state.copy(move)  # Group A skill, Dynamic generation of OOP object
                     board.make_a_move(0)
-                    result = min(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha, beta, timer - (time() - start_time)))
+                    result = min(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha,
+                                                           beta, timer - (time() - start_time)))
+                    # Group A skill, Recursive algorithm
                     if result <= alpha:
                         break
                     beta = min(beta, result)
                 return result
             else:
                 result = float("-inf")
-                for move in range(0, len(possible_moves)):
-                    board = game_state.copy(move)
+                for move in range(0, len(possible_moves)):  # Group A skill, Tree Traversal
+                    board = game_state.copy(move)  # Group A skill, Dynamic generation of OOP object
                     board.make_a_move(0)
-                    result = max(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha, beta, timer - (time() - start_time)))
+                    result = max(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha,
+                                                           beta, timer - (time() - start_time)))
+                    # Group A skill, Recursive algorithm
                     if result >= beta:
                         break
                     alpha = max(alpha, result)
@@ -95,7 +102,7 @@ class GameMode:
         return max_value - min_value
 
 
-class Board:
+class Board:  # Class contains a representation of game board and performs all board manipulations
     ALTERNATIVE = "○●＿◎"
     WHITE = "W"
     BLACK = "B"
@@ -103,6 +110,7 @@ class Board:
     POSSIBLE = "+"
 
     def __init__(self):
+        # Initial board set up
         self.__grid = []
         for _ in range(8):
             self.__grid.append([self.EMPTY for _ in range(8)])
@@ -110,15 +118,17 @@ class Board:
         self.__grid[4][4] = self.WHITE
         self.__grid[3][4] = self.BLACK
         self.__grid[4][3] = self.BLACK
+        # Initialisation of the boundary to optimise time to search for possible moves
         self.__boundary = {}
         self.__initialise_boundary()
         self.__current_player = self.BLACK
         self.__opponents = {self.BLACK: self.WHITE, self.WHITE: self.BLACK}
         self.__possible_moves = []
         self.__moves_meta_data = []
+        # Stack in linked list implementation is used to store sequence of player moves
         self.__moves_story = []
 
-    def copy(self, move):
+    def copy(self, move):  # User defined copy function optimising time complexity of Minimax algorithm
         new_board = Board()
         for row in range(0, 8):
             for col in range(0, 8):
@@ -130,25 +140,31 @@ class Board:
         new_board.__moves_meta_data.append(self.__moves_meta_data[move])
         return new_board
 
-    def __initialise_boundary(self):
+    def __initialise_boundary(self):  # Initialisation of boundary, area adjacent to existing pieces,
+        # to optimise possible move search
         for row in range(2, 6):
             for col in range(2, 6):
                 if (row, col) not in [(3, 3), (3, 4), (4, 3), (4, 4)]:
                     self.__boundary[(row, col)] = 0
 
     def get_possible_moves(self):
+        # Function checks all available places from the boundary returning a set of moves that can be performed
         self.__moves_meta_data = []
         self.__possible_moves = []
         for row, col in self.__boundary:
             move_effects = []
             for row_change in [-1, 0, 1]:
                 for col_change in [-1, 0, 1]:
-                    if not (row_change == 0 and col_change == 0) and 0 <= row + row_change < 8 and 0 <= col + col_change < 8:
+                    if not (row_change == 0 and col_change == 0) and 0 <= row + row_change < 8 and \
+                            0 <= col + col_change < 8:
                         if self.__grid[row + row_change][col + col_change] == self.__opponents[self.__current_player]:
                             scale = 2
                             same_piece_found = False
-                            while 0 <= row + row_change * scale < 8 and 0 <= col + col_change * scale < 8 and self.__grid[row + row_change * scale][col + col_change * scale] != self.EMPTY and not same_piece_found:
-                                if self.__grid[row + row_change * scale][col + col_change * scale] == self.__current_player:
+                            while 0 <= row + row_change * scale < 8 and 0 <= col + col_change * scale < 8 and \
+                                    self.__grid[row + row_change * scale][col + col_change * scale] != self.EMPTY and \
+                                    not same_piece_found:
+                                if self.__grid[row + row_change * scale][col + col_change * scale] == \
+                                        self.__current_player:
                                     same_piece_found = True
                                     break
                                 scale += 1
@@ -159,13 +175,14 @@ class Board:
                 self.__moves_meta_data.append(move_effects)
         return self.__possible_moves
 
-    def opposite(self):
+    def opposite(self):   # Returns a symbol for opponent the player currently taking a turn
         return self.__opponents[self.__current_player]
 
-    def get_current_player(self):
+    def get_current_player(self):  # Returns a symbol for player currently taking a turn
         return self.__current_player
 
     def make_a_move(self, move):
+        # Places a piece of player's choice and performs corresponding update to the board and record
         if move is not None:
             # Move
             row = self.__possible_moves[move][0]
@@ -176,20 +193,23 @@ class Board:
                     self.__grid[row + effect[0] * scale][col + effect[1] * scale] = self.__current_player
 
             # Saving into history
-            self.__moves_story.append([row, col, self.__moves_meta_data[move]])
+            self.__moves_story.append([row, col, self.__moves_meta_data[move]])  # Group A skill, Stack operation, push
 
             # Boundary update
             del self.__boundary[(row, col)]
             for row_change in [-1, 0, 1]:
                 for col_change in [-1, 0, 1]:
                     if 0 <= row + row_change < 8 and 0 <= col + col_change < 8:
-                        if self.__grid[row + row_change][col + col_change] == self.EMPTY and (row + row_change, col + col_change) not in self.__boundary:
+                        if self.__grid[row + row_change][col + col_change] == self.EMPTY and \
+                                (row + row_change, col + col_change) not in self.__boundary:
                             self.__boundary[(row + row_change, col + col_change)] = 0
         self.__current_player = self.__opponents[self.__current_player]
 
     def undo_move(self):
+        # Function deletes the last move and performs corresponding
+        # corrections to the board to restore it previous state
         if len(self.__moves_story) > 0:
-            move = self.__moves_story.pop()
+            move = self.__moves_story.pop()  # Group A skill, Stack operation, pop
             for effect in move[2][::-1]:
                 for scale in range(1, effect[2]):
                     self.__grid[move[0] + effect[0] * scale][move[1] + effect[1] * scale] = self.__current_player
@@ -197,10 +217,10 @@ class Board:
             self.__current_player = self.__opponents[self.__current_player]
             self.__boundary[(move[0], move[1])] = 0
 
-    def get_board(self):
+    def get_board(self):  # Returns board to be shown to user via UI
         return self.__grid
 
-    def win_status(self):
+    def win_status(self):  # Checks which player won or if its a draw
         black_counter = 0
         white_counter = 0
         for row in range(0, 8):
@@ -216,7 +236,7 @@ class Board:
         else:
             return self.WHITE
 
-    def get_number_of_pieces(self):
+    def get_number_of_pieces(self):  # Returns a number of pieces each player has to be shown via UI
         black_count = 0
         while_count = 0
         for row in range(0, 8):
