@@ -180,7 +180,7 @@ class GUI:  # Class provides Graphical User Interface for the game
 
         # Buttons
         button_font = pygame.font.SysFont("Open Sans", 80)
-        labels = ["PLAY", "SIGN IN"]
+        labels = ["PLAY", "SIGN IN", "REGISTER"]
         button_width = 300
         button_height = 50
 
@@ -208,7 +208,9 @@ class GUI:  # Class provides Graphical User Interface for the game
             pygame.display.update()
 
             # Events handling
-            event_functions = [self.__run_play_menu, self.__sign_in_menu]
+            event_functions = [self.__run_play_menu, self.__sign_in_menu, self.__sign_in_menu]
+            arguments = (button_width, button_height, button_font, text_colour)
+            argument_list = [arguments, (*arguments, False), (*arguments, True)]
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -218,14 +220,14 @@ class GUI:  # Class provides Graphical User Interface for the game
                     for index in range(0, len(labels)):
                         if center <= mouse_pos[0] <= center + button_width and initial_y_pos + index * step <= \
                                 mouse_pos[1] <= initial_y_pos + index * step + button_height:
-                            event_functions[index](button_width, button_height, button_font, text_colour)
+                            event_functions[index](*argument_list[index])
                 # Window resizing
                 elif event.type == pygame.VIDEORESIZE:
                     self.WINDOW_SIZE = pygame.display.get_surface().get_size()
                     self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
-    def __sign_in_menu(self, button_width, button_height, button_font, text_colour):
+    def __sign_in_menu(self, button_width, button_height, button_font, text_colour, register):
         try:
             client = Client()
         except Exception:
@@ -316,17 +318,27 @@ class GUI:  # Class provides Graphical User Interface for the game
                             client = Client()
                         except Exception:
                             self.__show_message("Server Unavailable", True)
-                        request_result = client.sign_in(user_input[0], user_input[1])
-                        if request_result == 1:
-                            self.__username = user_input[0]
-                            self.__show_message("Success", False)
-                            return None
-                        elif request_result == 0:
-                            self.__show_message("Wrong Password", False)
-                            del client
-                        elif request_result == -1:
-                            self.__show_message("Username Not Found", False)
-                            del client
+                        if not register:
+                            request_result = client.sign_in(user_input[0], user_input[1])
+                            if request_result == 1:
+                                self.__username = user_input[0]
+                                self.__show_message("Success", False)
+                                return None
+                            elif request_result == 0:
+                                self.__show_message("Wrong Password", False)
+                                del client
+                            elif request_result == -1:
+                                self.__show_message("Username Not Found", False)
+                                del client
+                        else:
+                            request_result = client.create_account(user_input[0], user_input[1])
+                            if request_result:
+                                self.__username = user_input[0]
+                                self.__show_message("Account Created", False)
+                                return None
+                            else:
+                                self.__show_message("Username already exists", False)
+                                del client
                 elif event.type == pygame.KEYDOWN and active_input_field_flag != -1:
                     if event.key == pygame.K_BACKSPACE:
                         user_input[active_input_field_flag] = user_input[active_input_field_flag][:-1]
