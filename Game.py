@@ -39,15 +39,16 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
         for move in range(0, len(possible_moves)):
             board = self.__Board.copy(move)
             board.make_a_move(0)
-            scores.append(self.__alpha_beta(board, False, depth, True, float("-inf"), float("inf"), timer))
+            scores.append(self.__alpha_beta(board, False, depth, True, float("-inf"), float("inf"),
+                                            timer, board.get_current_player()))
         return scores.index(min(scores))  # Algorithm returns an index of best move to make
 
-    def __alpha_beta(self, game_state, no_moves_flag, depth, minimising_player, alpha, beta, timer):
+    def __alpha_beta(self, game_state, no_moves_flag, depth, minimising_player, alpha, beta, timer, AI_piece):
         # Group A skill, Optimisation algorithm
         start_time = time()
         new_flag = (len(game_state.get_possible_moves()) == 0)
         if depth == 0 or timer <= 1 or (new_flag and no_moves_flag):
-            return self.__heuristic(game_state, minimising_player)
+            return self.__heuristic(game_state, AI_piece)
         else:
             possible_moves = game_state.get_possible_moves()
             if minimising_player:
@@ -56,7 +57,7 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
                     board = game_state.copy(move)  # Group A skill, Dynamic generation of OOP object
                     board.make_a_move(0)
                     result = min(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha,
-                                                           beta, timer - (time() - start_time)))
+                                                           beta, timer - (time() - start_time), AI_piece))
                     # Group A skill, Recursive algorithm
                     if result <= alpha:
                         break
@@ -68,7 +69,7 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
                     board = game_state.copy(move)  # Group A skill, Dynamic generation of OOP object
                     board.make_a_move(0)
                     result = max(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha,
-                                                           beta, timer - (time() - start_time)))
+                                                           beta, timer - (time() - start_time), AI_piece))
                     # Group A skill, Recursive algorithm
                     if result >= beta:
                         break
@@ -87,19 +88,15 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
                             [4, -3, 2, 2, 2, 2, -3, 4]]
         max_value = 0
         min_value = 0
-        if minimizing_player:
-            min_player = game_state.get_current_player()
-            max_player = game_state.opposite()
-        else:
-            max_player = game_state.get_current_player()
-            min_player = game_state.opposite()
+        min_player = minimizing_player
+        max_player = game_state.WHITE if game_state.BLACK == minimizing_player else game_state.BLACK
         for row in range(0, 8):
             for col in range(0, 8):
                 if game_state.get_board()[row][col] == min_player:
                     min_value += heuristic_values[row][col]
                 elif game_state.get_board()[row][col] == max_player:
                     max_value += heuristic_values[row][col]
-        return max_value - min_value
+        return -(max_value - min_value)
 
 
 class Board:  # Class contains a representation of game board and performs all board manipulations
