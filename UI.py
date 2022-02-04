@@ -160,6 +160,16 @@ class GUI:  # Class provides Graphical User Interface for the game
     BUTTONS = (100, 0, 7)
     BUTTONS_HOVER = (20, 0, 0)
     TEXT_COLOUR = (0, 165, 158)
+    BLACK = (0, 0, 0)
+    WHITE = (255, 255, 255)
+
+    # Board colours
+    GREEN_BOARD = (0, 118, 7)
+    FIRST_PLAYER = (0, 0, 0)
+    FIRST_PLAYER_PALE = (39, 39, 39)
+    SECOND_PLAYER = (255, 255, 255)
+    SECOND_PLAYER_PALE = (180, 180, 180)
+
     QUIT = "Q"
     pygame.font.init()
     USERNAME_FONT = pygame.font.SysFont("Open Sans", 40)
@@ -183,7 +193,7 @@ class GUI:  # Class provides Graphical User Interface for the game
             pass
 
         # Labels
-        labels = ["PLAY", "SIGN IN", "REGISTER"]
+        labels = ["PLAY", "SIGN IN", "REGISTER", "SETTINGS"]
 
 
         # Game Loop
@@ -208,19 +218,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                 self.__screen.blit(button_surface, ((self.WINDOW_SIZE[0] - button_surface.get_rect().width) // 2,
                                                     initial_y_pos + index * step))
 
-            # Username display
-            usernames = []
-            for username in [self.__username_1, self.__username_2]:
-                if username is None:
-                    usernames.append("Not signed in")
-                else:
-                    usernames.append(username)
-
-            for index in range(0, len(usernames)):
-                username_surface = self.USERNAME_FONT.render(f"Player {index + 1}: {usernames[index]}",
-                                                             False, self.TEXT_COLOUR)
-                self.__screen.blit(username_surface, (0, self.WINDOW_SIZE[1] -
-                                                      username_surface.get_rect().height * (len(usernames) - index)))
+            self.__show_usernames()
 
             pygame.display.update()
 
@@ -238,8 +236,10 @@ class GUI:  # Class provides Graphical User Interface for the game
                                 self.__run_play_menu()
                             elif index == 1:
                                 self.__sign_in_menu(False)
-                            else:
+                            elif index == 2:
                                 self.__sign_in_menu(True)
+                            else:
+                                self.__settings()
                 # Window resizing
                 elif event.type == pygame.VIDEORESIZE:
                     self.WINDOW_SIZE = pygame.display.get_surface().get_size()
@@ -337,6 +337,8 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                         player_select_pos[chosen_player][1] + 5,
                                                         inner_square, inner_square))
 
+            self.__show_usernames()
+
             pygame.display.update()
 
             # Events handling
@@ -370,10 +372,21 @@ class GUI:  # Class provides Graphical User Interface for the game
                         if not register:
                             request_result = client.sign_in(user_input[0], user_input[1])
                             if request_result == 1:
+                                client = Client()
                                 if chosen_player == 1:
                                     self.__username_2 = user_input[0]
                                 else:
                                     self.__username_1 = user_input[0]
+                                    colours = client.send_colours(self.__username_1)
+                                    self.FIRST_PLAYER = colours[0]
+                                    self.FIRST_PLAYER_PALE = (colours[0][0] // 2,
+                                                              colours[0][1] // 2,
+                                                              colours[0][2] // 2)
+                                    self.SECOND_PLAYER = colours[1]
+                                    self.SECOND_PLAYER_PALE = (colours[1][0] // 2,
+                                                               colours[1][1] // 2,
+                                                               colours[1][2] // 2)
+                                    self.GREEN_BOARD = colours[2]
                                 self.__show_message("Success", False)
                                 return None
                             elif request_result == 0:
@@ -383,7 +396,10 @@ class GUI:  # Class provides Graphical User Interface for the game
                                 self.__show_message("Username Not Found", False)
                                 del client
                         else:
-                            request_result = client.create_account(user_input[0], user_input[1])
+                            request_result = client.create_account(user_input[0], user_input[1],
+                                                                   (self.FIRST_PLAYER,
+                                                                    self.SECOND_PLAYER,
+                                                                    self.GREEN_BOARD))
                             if request_result:
                                 self.__show_message("Account Created", False)
                                 return None
@@ -428,6 +444,9 @@ class GUI:  # Class provides Graphical User Interface for the game
                 button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
                 self.__screen.blit(button_surface, ((self.WINDOW_SIZE[0] - button_surface.get_rect().width) // 2,
                                                     initial_y_pos + index * step))
+
+            self.__show_usernames()
+
             pygame.display.update()
 
             # Events handling
@@ -452,14 +471,168 @@ class GUI:  # Class provides Graphical User Interface for the game
                     self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
+    def __settings(self):
+        labels = ["PLAYER 1 COLOUR", "PLAYER 2 COLOUR", "BOARD COLOUR", "BACK"]
+
+        # Update loop
+        while True:
+            initial_y_pos = 110 + 50 * self.RESIZE_COEFFICIENT[1]
+            step = self.BUTTON_HEIGHT + self.BUTTON_HEIGHT * self.RESIZE_COEFFICIENT[1]
+            button_surface = self.BUTTON_FONT.render(labels[1], False, self.TEXT_COLOUR)
+            button_width = button_surface.get_rect().width
+            center = (self.WINDOW_SIZE[0] - button_width) // 2
+
+            self.__screen.fill(self.BACKGROUND)
+            mouse_pos = pygame.mouse.get_pos()
+
+            # Update cycle
+            self.__screen.blit(self.LOGO_SURFACE, ((self.WINDOW_SIZE[0] - self.LOGO_SURFACE.get_rect().width) // 2, 0))
+            for index in range(0, len(labels)):
+                button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
+                if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and \
+                        initial_y_pos + index * step <= mouse_pos[1] <=\
+                        initial_y_pos + index * step + self.BUTTON_HEIGHT:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (center, initial_y_pos + index * step,
+                                                                         button_width, self.BUTTON_HEIGHT))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS, (center, initial_y_pos + index * step,
+                                                                   button_width, self.BUTTON_HEIGHT))
+                self.__screen.blit(button_surface, ((self.WINDOW_SIZE[0] - button_surface.get_rect().width) // 2,
+                                                    initial_y_pos + index * step))
+
+            self.__show_usernames()
+
+            pygame.display.update()
+
+            # Events handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                # Mouse clicking
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    for index in range(0, len(labels)):
+                        if center <= mouse_pos[0] <= center + button_width and initial_y_pos + index * step <= \
+                                mouse_pos[1] <= initial_y_pos + index * step + self.BUTTON_HEIGHT:
+                            if index == len(labels) - 1:
+                                if self.__username_1 is not None:
+                                    try:
+                                        client = Client()
+                                        client.update_colours(self.__username_1,
+                                                              (self.FIRST_PLAYER, self.SECOND_PLAYER, self.GREEN_BOARD))
+                                    except Exception:
+                                        pass
+                                return None
+                            else:
+                                self.__colour_picker(index)
+                # Window resizing
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
+                                               self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
+
+    def __colour_picker(self, player_or_board):
+        labels = ["RED", "GREEN", "BLUE", "BACK"]
+        input_position = 0
+        if player_or_board == 0:
+            new_colour = [self.FIRST_PLAYER[0], self.FIRST_PLAYER[1], self.FIRST_PLAYER[2]]
+        elif player_or_board == 1:
+            new_colour = [self.SECOND_PLAYER[0], self.SECOND_PLAYER[1], self.SECOND_PLAYER[2]]
+        else:
+            new_colour = [self.GREEN_BOARD[0], self.GREEN_BOARD[1], self.GREEN_BOARD[2]]
+
+        for index in range(0, len(new_colour)):
+            new_colour[index] = str(new_colour[index])
+
+        # Update loop
+        while True:
+            initial_y_pos = 110 + 50 * self.RESIZE_COEFFICIENT[1]
+            step = self.BUTTON_HEIGHT + 1.5 * self.BUTTON_HEIGHT * self.RESIZE_COEFFICIENT[1]
+            center = (self.WINDOW_SIZE[0] - self.BUTTON_WIDTH) // 2
+            piece_radius = 50
+
+            self.__screen.fill(self.BACKGROUND)
+            mouse_pos = pygame.mouse.get_pos()
+
+            # Update cycle
+            converted_colour = [0, 0, 0]
+            for index in range(0, len(new_colour)):
+                if new_colour[index] != "":
+                    converted_colour[index] = min(255, int(new_colour[index]))
+            converted_colour = (converted_colour[0], converted_colour[1], converted_colour[2])
+            pygame.draw.circle(self.__screen, converted_colour,
+                               (self.WINDOW_SIZE[0] // 2, initial_y_pos - step * 0.6), piece_radius)
+
+            for index in range(0, len(labels)):
+                button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
+                if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and \
+                        initial_y_pos + index * step + step * 0.5 <= mouse_pos[1] <= \
+                        initial_y_pos + index * step + step * 0.5 + self.BUTTON_HEIGHT:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (center, initial_y_pos + index * step + step * 0.5,
+                                                                         self.BUTTON_WIDTH, self.BUTTON_HEIGHT))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS, (center, initial_y_pos + index * step + step * 0.5,
+                                                                   self.BUTTON_WIDTH, self.BUTTON_HEIGHT))
+                if index < len(labels) - 1:
+                    value_surface = self.BUTTON_FONT.render(str(new_colour[index]), False, self.TEXT_COLOUR)
+                    self.__screen.blit(value_surface, ((self.WINDOW_SIZE[0] - value_surface.get_rect().width) // 2,
+                                                        initial_y_pos + index * step + step * 0.5))
+                if index < len(labels) - 1:
+                    self.__screen.blit(button_surface, ((self.WINDOW_SIZE[0] - button_surface.get_rect().width) // 2,
+                                                        initial_y_pos + index * step))
+                else:
+                    self.__screen.blit(button_surface, ((self.WINDOW_SIZE[0] - button_surface.get_rect().width) // 2,
+                                                        initial_y_pos + index * step + step * 0.5))
+
+            self.__show_usernames()
+
+            pygame.display.update()
+
+            # Events handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                # Mouse clicking
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    for index in range(0, len(labels)):
+                        if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and initial_y_pos + index * step + \
+                                step * 0.5 <= mouse_pos[1] <= initial_y_pos + index * step \
+                                + step  * 0.5 + self.BUTTON_HEIGHT:
+                            if index == len(labels) - 1:
+                                if player_or_board == 0:
+                                    self.FIRST_PLAYER = converted_colour
+                                    self.FIRST_PLAYER_PALE = (converted_colour[0] // 2,
+                                                              converted_colour[1] // 2,
+                                                              converted_colour[2] // 2)
+                                elif player_or_board == 1:
+                                    self.SECOND_PLAYER = converted_colour
+                                    self.SECOND_PLAYER_PALE = (converted_colour[0] // 2,
+                                                               converted_colour[1] // 2,
+                                                               converted_colour[2] // 2)
+                                else:
+                                    self.GREEN_BOARD = converted_colour
+                                return None
+                            else:
+                                input_position = index
+                # Key input
+                elif event.type == pygame.KEYDOWN:
+                    try:
+                        if event.key == pygame.K_BACKSPACE:
+                            new_colour[input_position] = ""
+                        else:
+                            if len(str(new_colour[input_position])) < 3:
+                                new_colour[input_position] += str(int(event.unicode))
+                    except Exception:
+                        pass
+                # Window resizing
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
+                                               self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
+
     def __display_game_board(self, board, possible_moves, current_player, characters, counters, timers,
                              win_status, ai_status, ai_turn):  # Displaying game board and retrieving user input
-        # Constants
-        green_board = (0, 118, 7)
-        black = (0, 0, 0)
-        black_pale = (39, 39, 39)
-        white = (255, 255, 255)
-        white_pale = (180, 180, 180)
 
         # Main loop
         while True:
@@ -473,12 +646,12 @@ class GUI:  # Class provides Graphical User Interface for the game
 
             # Counter constants
             counter_font = pygame.font.SysFont("Open Sans", int(50 * min(self.RESIZE_COEFFICIENT)))
-            black_count_surface = counter_font.render(f"X{counters[0]}", False, black)
-            white_count_surface = counter_font.render(f"X{counters[1]}", False, white)
+            black_count_surface = counter_font.render(f"X{counters[0]}", False, self.FIRST_PLAYER)
+            white_count_surface = counter_font.render(f"X{counters[1]}", False, self.SECOND_PLAYER)
 
             # AI constants
             ai_font = pygame.font.SysFont("Open Sans", int(80 * min(self.RESIZE_COEFFICIENT)))
-            ai_message = ai_font.render("Calculating...", False, black)
+            ai_message = ai_font.render("Calculating...", False, self.BLACK)
             ai_box_x = ai_message.get_rect().width + 100
             ai_box_y = ai_message.get_rect().height + 40
             ai_box_pos_x = (self.WINDOW_SIZE[0] - ai_box_x) / 2
@@ -486,12 +659,12 @@ class GUI:  # Class provides Graphical User Interface for the game
 
             # Undo constants
             undo_font = pygame.font.SysFont("Open Sans", 50)
-            undo_image = undo_font.render("Undo", False, black)
+            undo_image = undo_font.render("Undo", False, self.BLACK)
             undo_x = offset_x + step_in_pixels * 2 - 23 * min(self.RESIZE_COEFFICIENT)
             undo_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
 
             # Quit constants
-            quit_image = undo_font.render("Quit", False, black)
+            quit_image = undo_font.render("Quit", False, self.BLACK)
             quit_x = offset_x + step_in_pixels * 5 - 23 * min(self.RESIZE_COEFFICIENT)
             quit_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
 
@@ -499,19 +672,19 @@ class GUI:  # Class provides Graphical User Interface for the game
             mouse_pos = pygame.mouse.get_pos()
 
             # Update cycle
-            pygame.draw.rect(self.__screen, green_board, (initial_pos_x, initial_pos_y, board_side, board_side))
+            pygame.draw.rect(self.__screen, self.GREEN_BOARD, (initial_pos_x, initial_pos_y, board_side, board_side))
             for index in range(0, 9):
-                pygame.draw.line(self.__screen, black, (initial_pos_x, initial_pos_y + step_in_pixels * index),
+                pygame.draw.line(self.__screen, self.FIRST_PLAYER, (initial_pos_x, initial_pos_y + step_in_pixels * index),
                                  (initial_pos_x + board_side, initial_pos_y + step_in_pixels * index))
-                pygame.draw.line(self.__screen, black, (initial_pos_x + step_in_pixels * index, initial_pos_y),
+                pygame.draw.line(self.__screen, self.FIRST_PLAYER, (initial_pos_x + step_in_pixels * index, initial_pos_y),
                                  (initial_pos_x + step_in_pixels * index, initial_pos_y + board_side))
             for row in range(0, 8):
                 for col in range(0, 8):
                     if board[row][col] == characters[0]:
-                        pygame.draw.circle(self.__screen, black, (offset_x + step_in_pixels * col, offset_y +
+                        pygame.draw.circle(self.__screen, self.FIRST_PLAYER, (offset_x + step_in_pixels * col, offset_y +
                                                                   step_in_pixels * row), piece_radius)
                     elif board[row][col] == characters[1]:
-                        pygame.draw.circle(self.__screen, white, (offset_x + step_in_pixels * col, offset_y +
+                        pygame.draw.circle(self.__screen, self.SECOND_PLAYER, (offset_x + step_in_pixels * col, offset_y +
                                                                   step_in_pixels * row), piece_radius)
 
             # Undo button
@@ -534,10 +707,10 @@ class GUI:  # Class provides Graphical User Interface for the game
             self.__screen.blit(quit_image, (quit_x, quit_y))
 
             # Piece counters
-            pygame.draw.circle(self.__screen, black, (offset_x, offset_y + step_in_pixels * 8), piece_radius)
+            pygame.draw.circle(self.__screen, self.FIRST_PLAYER, (offset_x, offset_y + step_in_pixels * 8), piece_radius)
             self.__screen.blit(black_count_surface, (offset_x + step_in_pixels - 35 * min(self.RESIZE_COEFFICIENT),
                                                      offset_y + step_in_pixels * 8 - 15 * min(self.RESIZE_COEFFICIENT)))
-            pygame.draw.circle(self.__screen, white, (offset_x + step_in_pixels * 6, offset_y + step_in_pixels * 8),
+            pygame.draw.circle(self.__screen, self.SECOND_PLAYER, (offset_x + step_in_pixels * 6, offset_y + step_in_pixels * 8),
                                piece_radius)
             self.__screen.blit(white_count_surface, (offset_x + step_in_pixels * 7 - 35 * min(self.RESIZE_COEFFICIENT),
                                                      offset_y + step_in_pixels * 8 - 15 * min(self.RESIZE_COEFFICIENT)))
@@ -564,12 +737,12 @@ class GUI:  # Class provides Graphical User Interface for the game
                     if white_timer % 60 < 10:
                         white_timer_text += f"0"
                     white_timer_text += f"{white_timer % 60}"
-                black_timer_surface = counter_font.render(black_timer_text, False, black)
-                white_timer_surface = counter_font.render(white_timer_text, False, white)
-                pygame.draw.circle(self.__screen, black, (offset_x, offset_y - step_in_pixels), piece_radius)
+                black_timer_surface = counter_font.render(black_timer_text, False, self.FIRST_PLAYER)
+                white_timer_surface = counter_font.render(white_timer_text, False, self.SECOND_PLAYER)
+                pygame.draw.circle(self.__screen, self.FIRST_PLAYER, (offset_x, offset_y - step_in_pixels), piece_radius)
                 self.__screen.blit(black_timer_surface, (offset_x + step_in_pixels - 35 * min(self.RESIZE_COEFFICIENT),
                                                          offset_y - step_in_pixels - 15 * min(self.RESIZE_COEFFICIENT)))
-                pygame.draw.circle(self.__screen, white, (offset_x + step_in_pixels * 6, offset_y - step_in_pixels),
+                pygame.draw.circle(self.__screen, self.SECOND_PLAYER, (offset_x + step_in_pixels * 6, offset_y - step_in_pixels),
                                    piece_radius)
                 self.__screen.blit(white_timer_surface, (offset_x +
                                                          step_in_pixels * 7 - 35 * min(self.RESIZE_COEFFICIENT),
@@ -591,17 +764,17 @@ class GUI:  # Class provides Graphical User Interface for the game
                         if (mouse_pos[0] - (offset_x + step_in_pixels * move[1])) ** 2\
                                 + (mouse_pos[1] - (offset_y + step_in_pixels * move[0])) ** 2 <= piece_radius ** 2:
                             if current_player == characters[0]:
-                                pygame.draw.circle(self.__screen, black_pale,
+                                pygame.draw.circle(self.__screen, self.FIRST_PLAYER_PALE,
                                                    (offset_x + step_in_pixels * move[1],
                                                     offset_y + step_in_pixels * move[0]), piece_radius)
                             else:
-                                pygame.draw.circle(self.__screen, white_pale, (offset_x + step_in_pixels * move[1],
+                                pygame.draw.circle(self.__screen, self.SECOND_PLAYER_PALE, (offset_x + step_in_pixels * move[1],
                                                                                offset_y + step_in_pixels * move[0]),
                                                    piece_radius)
                         else:
-                            pygame.draw.circle(self.__screen, black, (offset_x + step_in_pixels * move[1], offset_y +
+                            pygame.draw.circle(self.__screen, self.FIRST_PLAYER, (offset_x + step_in_pixels * move[1], offset_y +
                                                                       step_in_pixels * move[0]), piece_radius, 1)
-                            pygame.draw.circle(self.__screen, black, (offset_x + step_in_pixels * move[1], offset_y +
+                            pygame.draw.circle(self.__screen, self.FIRST_PLAYER, (offset_x + step_in_pixels * move[1], offset_y +
                                                                       step_in_pixels * move[0]), piece_radius - 5, 1)
 
             # AI message
@@ -640,6 +813,21 @@ class GUI:  # Class provides Graphical User Interface for the game
             # Timer check
             if timers[0] is not None and (black_timer <= 0 or white_timer <= 0):
                 return None
+
+    def __show_usernames(self):
+        # Username display
+        usernames = []
+        for username in [self.__username_1, self.__username_2]:
+            if username is None:
+                usernames.append("Not signed in")
+            else:
+                usernames.append(username)
+
+        for index in range(0, len(usernames)):
+            username_surface = self.USERNAME_FONT.render(f"Player {index + 1}: {usernames[index]}",
+                                                         False, self.TEXT_COLOUR)
+            self.__screen.blit(username_surface, (0, self.WINDOW_SIZE[1] -
+                                                  username_surface.get_rect().height * (len(usernames) - index)))
 
     def __show_message(self, text, fill):  # Shows a pop up message on the screen
         message_colour = (194, 0, 0)
@@ -833,6 +1021,9 @@ class GUI:  # Class provides Graphical User Interface for the game
                         box_pos_y <= mouse_pos[1] <= box_pos_y + outer_box_size:
                     pygame.draw.rect(self.__screen, pale_green, (box_pos_x + 5, box_pos_y + 5,
                                                                  inner_box_size, inner_box_size))
+
+            self.__show_usernames()
+
             pygame.display.update()
 
             # Events handling
@@ -1028,6 +1219,9 @@ class GUI:  # Class provides Graphical User Interface for the game
                         player_box_y <= mouse_pos[1] <= player_box_y + outer_box_size:
                     pygame.draw.rect(self.__screen, pale_green, (player_box_x + 5,
                                                                  player_box_y + 5, inner_box_size, inner_box_size))
+
+            self.__show_usernames()
+
             pygame.display.update()
 
             # Events handling

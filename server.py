@@ -11,11 +11,15 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
     SAVE_GAME = "sg"
     RETRIEVE = "re"
     SHOW_PLAYED_GAMES = "spg"
+    SEND_COLOURS = "sc"
+    UPDATE_COLOURS = "uc"
 
     def __init__(self):
         self.__procedure_list = {self.CREATE_ACCOUNT: self.__create_account, self.SIGN_IN: self.__sign_in,
                                  self.SAVE_GAME: self.__save_game, self.RETRIEVE: self.__retrieve_game,
-                                 self.SHOW_PLAYED_GAMES: self.__show_played_games}
+                                 self.SHOW_PLAYED_GAMES: self.__show_played_games,
+                                 self.SEND_COLOURS: self.__send_colours,
+                                 self.UPDATE_COLOURS: self.__update_colours}
         # Establishing connection with MySQL database
         # Group A skill, Server-side extension
         self.__database = self.__connect_to_database()
@@ -43,15 +47,16 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
                 self.__procedure_list[message[:2]](loads(message[2:]), client_socket)
 
     def __create_account(self, arguments, client):  # Querying MySQL database to create new user account
-        username, password = arguments
+        username, password, colours = arguments
         self.__cursor.execute(f'SELECT COUNT(USERNAME) FROM user_information WHERE USERNAME = "{username}"')
         # Group A skill, Aggregate SQL functions
         if self.__cursor.fetchall()[0][0] > 0:
             message = False
         else:
             message = True
-            self.__cursor.execute(f'INSERT INTO user_information (USERNAME, PASSWORD_HASH) VALUES '
-                                  f'("{username}", "{password}")')
+            self.__cursor.execute(f'INSERT INTO user_information (USERNAME, PASSWORD_HASH, FIRST_PLAYER_COLOUR, '
+                                  f'SECOND_PLAYER_COLOUR, BOARD_COLOUR) VALUES '
+                                  f'("{username}", "{password}", "{colours[0]}", "{colours[1]}", "{colours[2]}")')
             self.__database.commit()
         client.send(bytes(dumps(message), "utf-8"))
 
@@ -68,6 +73,21 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
         else:
             message = -1
         client.send(bytes(dumps(message), "utf-8"))
+
+    def __send_colours(self, arguments, client):
+        username = arguments
+        self.__cursor.execute(f'SELECT FIRST_PLAYER_COLOUR, SECOND_PLAYER_COLOUR, BOARD_COLOUR '
+                              f'FROM user_information WHERE USERNAME = "{username}"')
+        message = self.__cursor.fetchall()[0]
+        client.send(bytes(dumps(message), "utf-8"))
+
+    def __update_colours(self, arguments, client):
+        username, colours = arguments
+        self.__cursor.execute(f'UPDATE user_information SET FIRST_PLAYER_COLOUR = "{colours[0]}",'
+                              f'SECOND_PLAYER_COLOUR = "{colours[1]}", BOARD_COLOUR = "{colours[2]}"'
+                              f'WHERE USERNAME = "{username}"')
+        self.__database.commit()
+        client.send(bytes(dumps(True), "utf-8"))
 
     def __save_game(self, arguments, client):
         # Querying either an update to existing game save or to create a new entry for game save
