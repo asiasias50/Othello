@@ -6,18 +6,20 @@ import mysql.connector
 class Server:  # Class acts as a stand alone application, retrieving requests from clients,
     # quering requests to the MySQL database and sending appropriate responces
     # Group A skill, Complex client-server model
+    PACKET_SIZE = 4096
+    ENCODING = "utf-8"
     CREATE_ACCOUNT = "ca"
     SIGN_IN = "si"
     SAVE_GAME = "sg"
     RETRIEVE = "re"
-    SHOW_PLAYED_GAMES = "spg"
+    GAME_LIST = "gl"
     SEND_COLOURS = "sc"
     UPDATE_COLOURS = "uc"
 
     def __init__(self):
         self.__procedure_list = {self.CREATE_ACCOUNT: self.__create_account, self.SIGN_IN: self.__sign_in,
                                  self.SAVE_GAME: self.__save_game, self.RETRIEVE: self.__retrieve_game,
-                                 self.SHOW_PLAYED_GAMES: self.__show_played_games,
+                                 self.GAME_LIST: self.__game_list,
                                  self.SEND_COLOURS: self.__send_colours,
                                  self.UPDATE_COLOURS: self.__update_colours}
         # Establishing connection with MySQL database
@@ -42,7 +44,7 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
     def __message_cycle(self):  # Listening and processing cycle for clients' requests
         while True:
             client_socket, address = self.__server.accept()
-            message = client_socket.recv(1024).decode("utf-8")
+            message = client_socket.recv(self.PACKET_SIZE).decode(self.ENCODING)
             if message != "":
                 self.__procedure_list[message[:2]](loads(message[2:]), client_socket)
 
@@ -58,7 +60,7 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
                                   f'SECOND_PLAYER_COLOUR, BOARD_COLOUR) VALUES '
                                   f'("{username}", "{password}", "{colours[0]}", "{colours[1]}", "{colours[2]}")')
             self.__database.commit()
-        client.send(bytes(dumps(message), "utf-8"))
+        client.send(bytes(dumps(message), self.ENCODING))
 
     def __sign_in(self, arguments, client):  # Querying MySQL database to check the validity of user details for sign in
         username, password = arguments
@@ -72,14 +74,14 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
                 message = 0
         else:
             message = -1
-        client.send(bytes(dumps(message), "utf-8"))
+        client.send(bytes(dumps(message), self.ENCODING))
 
     def __send_colours(self, arguments, client):
         username = arguments
         self.__cursor.execute(f'SELECT FIRST_PLAYER_COLOUR, SECOND_PLAYER_COLOUR, BOARD_COLOUR '
                               f'FROM user_information WHERE USERNAME = "{username}"')
         message = self.__cursor.fetchall()[0]
-        client.send(bytes(dumps(message), "utf-8"))
+        client.send(bytes(dumps(message), self.ENCODING))
 
     def __update_colours(self, arguments, client):
         username, colours = arguments
@@ -87,43 +89,60 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
                               f'SECOND_PLAYER_COLOUR = "{colours[1]}", BOARD_COLOUR = "{colours[2]}"'
                               f'WHERE USERNAME = "{username}"')
         self.__database.commit()
-        client.send(bytes(dumps(True), "utf-8"))
+        client.send(bytes(dumps(True), self.ENCODING))
 
     def __save_game(self, arguments, client):
         # Querying either an update to existing game save or to create a new entry for game save
-        puzzle, finished, player1_id, player2_id, game_sequence_str = arguments
-        if player2_id is None:
-            player2_id = "NULL"
+        game_id, game_name, finished, player1, player2, game_sequence_str, meta_data_str = arguments
+        if game_id == "NULL":
+            self.__cursor.execute(f'SELECT player_id FROM user_information WHERE username = "{player1}"')
+            player1_id = self.__cursor.fetchall()[0][0]
+            if player2 != "NULL":
+                self.__cursor.execute(f'SELECT player_id FROM user_information WHERE username = "{player2}"')
+                player2_id = f'"{self.__cursor.fetchall()[0][0]}"'
+            else:
+                player2_id = 0
+            self.__cursor.execute(f'INSERT INTO game_information (finished, game_sequence, meta_data)'
+                                  f' VALUES ("{int(finished)}", "{game_sequence_str}", "{meta_data_str}")')
+            self.__cursor.execute(f'INSERT INTO games_played (player1_id, player2_id, game_name)'
+                                  f' VALUES ("{player1_id}", {player2_id}, "{game_name}")')
         else:
-            player2_id = f'"{player2_id}"'
-        self.__cursor.execute(f'SELECT game_id FROM games_played WHERE player1_id = "{player1_id}"'
-                              f' AND player2_id = {player2_id}')
-        game_id = self.__cursor.fetchall()
-        if len(game_id) > 0:
             self.__cursor.execute(f'UPDATE game_information SET finished = "{int(finished)}",'
-                                  f' game_sequence = {game_sequence_str} WHERE game_id = {game_id[0][0]}')
-        else:
-            self.__cursor.execute(f'INSERT INTO game_information (player1_id, player2_id)'
-                                  f' VALUES ("{puzzle}", "{finished}", "{game_sequence_str}")')
-            self.__cursor.execute(f'INSERT INTO games_played (player1_id, player2_id)'
-                                  f' VALUES ("{player1_id}", {player2_id})')
+                                  f' game_sequence = "{game_sequence_str}", meta_data = "{meta_data_str}"'
+                                  f' WHERE game_id = "{game_id}"')
         self.__database.commit()
-        client.send(bytes(dumps(True), "utf-8"))
+        client.send(bytes(dumps(True), self.ENCODING))
 
     def __retrieve_game(self, arguments, client):
-        game_id = arguments[0]
-        self.__cursor.execute(f'SELECT game_sequence FROM game_information WHERE game_id = {game_id}')
-        message = self.__cursor.fetchall()[0][0]
-        client.send(bytes(dumps(message), "utf-8"))
+        game_id = arguments
+        self.__cursor.execute(f'SELECT game_sequence, meta_data FROM game_information WHERE game_id = {game_id}')
+        message = self.__cursor.fetchall()[0]
+        client.send(bytes(dumps(message), self.ENCODING))
 
-    def __show_played_games(self, arguments, client):
-        player_id = arguments[0]
+    def __game_list(self, arguments, client):
+        username, set_of_five_records, finished = arguments
+        self.__cursor.execute(f'SELECT player_id FROM user_information WHERE username = "{username}"')
+        username = self.__cursor.fetchall()[0][0]
         # Group A skill, Aggregate SQL functions
-        self.__cursor.execute(f'SELECT * FROM game_information INNER JOIN games_played ON'
-                              f' game_information.game_id = games_played.game_id '
-                              f'WHERE player1_id = "{player_id}" OR player2_id = "{player_id}" ORDER BY game_id DESC')
-        message = self.__cursor.fetchall()
-        client.send(bytes(dumps(message), "utf-8"))
+        self.__cursor.execute(f'SELECT games_played.game_id, games_played.player2_id, games_played.game_name '
+                              f'FROM games_played INNER JOIN game_information ON'
+                              f' games_played.game_id = game_information.game_id '
+                              f'WHERE games_played.player1_id = "{username}" AND '
+                              f'game_information.finished = "{int(finished)}"'
+                              f'ORDER BY games_played.game_id DESC')
+        game_names_and_IDs = self.__cursor.fetchall()[0 + set_of_five_records:5 + set_of_five_records]
+        result = []
+        for record in game_names_and_IDs:
+            result_per_record = []
+            result_per_record.append(record[0])
+            if record[1] == 0:
+                result_per_record.append("AI")
+            else:
+                self.__cursor.execute(f'SELECT username FROM user_information WHERE player_id = {record[1]}')
+                result_per_record.append(self.__cursor.fetchall()[0][0])
+            result_per_record.append(record[2])
+            result.append(result_per_record)
+        client.send(bytes(dumps(result), self.ENCODING))
 
 
 if __name__ == '__main__':

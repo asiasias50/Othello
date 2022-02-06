@@ -33,14 +33,20 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
     def undo_move(self):
         self.__Board.undo_move()
 
+    def get_move_history(self):
+        return self.__Board.get_move_history()
+
+    def load(self, memory):
+        self.__Board.load(memory)
+
     def get_ai_move(self, possible_moves, depth, timer):
         # Minimax Algorithm with alpha beta pruning is used to find an optimal move for given board
         scores = []
         for move in range(0, len(possible_moves)):
             board = self.__Board.copy(move)
             board.make_a_move(0)
-            scores.append(self.__alpha_beta(board, False, depth, True, float("-inf"), float("inf"),
-                                            timer, board.get_current_player()))
+            scores.append(self.__alpha_beta(board, False, depth, False, float("-inf"), float("inf"),
+                                            timer, board.opposite()))
         return scores.index(min(scores))  # Algorithm returns an index of best move to make
 
     def __alpha_beta(self, game_state, no_moves_flag, depth, minimising_player, alpha, beta, timer, AI_piece):
@@ -76,27 +82,42 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
                     alpha = max(alpha, result)
                 return result
 
-
-    def __heuristic(self, game_state, minimizing_player):
-        heuristic_values = [[4, -3, 2, 2, 2, 2, -3, 4],
-                            [-3, -4, -1, -1, -1, -1, -4, -3],
-                            [2, -1, 1, 0, 0, 1, -1, 2],
-                            [2, -1, 0, 1, 1, 0, -1, 2],
-                            [2, -1, 0, 1, 1, 0, -1, 2],
-                            [2, -1, 1, 0, 0, 1, -1, 2],
-                            [-3, -4, -1, -1, -1, -1, -4, -3],
-                            [4, -3, 2, 2, 2, 2, -3, 4]]
+    def __heuristic_corners(self, game_state, minimizing_player):
         max_value = 0
         min_value = 0
-        min_player = minimizing_player
         max_player = game_state.WHITE if game_state.BLACK == minimizing_player else game_state.BLACK
-        for row in range(0, 8):
-            for col in range(0, 8):
-                if game_state.get_board()[row][col] == min_player:
-                    min_value += heuristic_values[row][col]
-                elif game_state.get_board()[row][col] == max_player:
-                    max_value += heuristic_values[row][col]
-        return -(max_value - min_value)
+        board = game_state.get_board()
+        for corner in [[0,0], [0,7], [7,0], [7,7]]:
+            if board[corner[0]][corner[1]] == minimizing_player:
+                min_value += 1
+            elif board[corner[0]][corner[1]] == max_player:
+                max_value += 1
+        if max_value + min_value == 0:
+            return 0
+        return (max_value - min_value) / (max_value + min_value)
+
+    def __heuristic_mobility(self, game_state, minimizing_player):
+        max_value = 0
+        min_value = 0
+        if game_state.get_current_player() == minimizing_player:
+            min_value += len(game_state.get_possible_moves())
+        else:
+            max_value += len(game_state.get_possible_moves())
+
+        game_state.undo_move()
+
+        if game_state.get_current_player() == minimizing_player:
+            min_value += len(game_state.get_possible_moves())
+        else:
+            max_value += len(game_state.get_possible_moves())
+
+        if max_value + min_value == 0:
+            return 0
+        return (max_value - min_value) / (max_value + min_value)
+
+    def __heuristic(self, game_state, minimizing_player):
+        return 2 * self.__heuristic_corners(game_state, minimizing_player)\
+               + self.__heuristic_mobility(game_state, minimizing_player)
 
 
 class Board:  # Class contains a representation of game board and performs all board manipulations
@@ -124,6 +145,7 @@ class Board:  # Class contains a representation of game board and performs all b
         self.__moves_meta_data = []
         # Stack in linked list implementation is used to store sequence of player moves
         self.__moves_story = []
+        self.__moves_story_indexes = []
 
     def copy(self, move):  # User defined copy function optimising time complexity of Minimax algorithm
         new_board = Board()
@@ -191,6 +213,7 @@ class Board:  # Class contains a representation of game board and performs all b
 
             # Saving into history
             self.__moves_story.append([row, col, self.__moves_meta_data[move]])  # Group A skill, Stack operation, push
+            self.__moves_story_indexes.append(move)
 
             # Boundary update
             del self.__boundary[(row, col)]
@@ -207,6 +230,7 @@ class Board:  # Class contains a representation of game board and performs all b
         # corrections to the board to restore it previous state
         if len(self.__moves_story) > 0:
             move = self.__moves_story.pop()  # Group A skill, Stack operation, pop
+            self.__moves_story_indexes.pop()
             for effect in move[2][::-1]:
                 for scale in range(1, effect[2]):
                     self.__grid[move[0] + effect[0] * scale][move[1] + effect[1] * scale] = self.__current_player
@@ -216,6 +240,9 @@ class Board:  # Class contains a representation of game board and performs all b
 
     def get_board(self):  # Returns board to be shown to user via UI
         return self.__grid
+
+    def get_move_history(self):
+        return self.__moves_story_indexes
 
     def win_status(self):  # Checks which player won or if its a draw
         black_counter = 0
@@ -243,3 +270,11 @@ class Board:  # Class contains a representation of game board and performs all b
                 elif self.__grid[row][col] == self.WHITE:
                     while_count += 1
         return [black_count, while_count]
+
+    def load(self, memory):
+        moves = memory
+        while len(moves) > 0:
+            move = int(moves[0])
+            moves = moves[1:]
+            self.get_possible_moves()
+            self.make_a_move(move)

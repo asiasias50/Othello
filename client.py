@@ -5,11 +5,13 @@ from hashlib import sha3_256
 
 class Client:  # Class formats and sends requests to the server, receives and decodes responses
     # Group A skill, Complex client-server model
+    PACKET_SIZE = 4096
+    ENCODING = "utf-8"
     CREATE_ACCOUNT = "ca"
     SIGN_IN = "si"
     SAVE_GAME = "sg"
     RETRIEVE = "re"
-    SHOW_PLAYED_GAMES = "spg"
+    GAME_LIST = "gl"
     SEND_COLOURS = "sc"
     UPDATE_COLOURS = "uc"
 
@@ -22,20 +24,20 @@ class Client:  # Class formats and sends requests to the server, receives and de
         for colour in colours:
             colors_new.append(dumps(colour))
         self.__client.send(bytes(self.CREATE_ACCOUNT +
-                                 dumps((username, str(int.from_bytes(sha3_256(password.encode("utf-8")).digest(),
-                                                    "little")), colors_new)), "utf-8"))  # Group A Skill, Hashing
-        return loads(self.__client.recv(1024).decode('utf-8'))
+                                 dumps((username, str(int.from_bytes(sha3_256(password.encode(self.ENCODING)).digest(),
+                                                    "little")), colors_new)), self.ENCODING))  # Group A Skill, Hashing
+        return loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
 
     def sign_in(self, username, password):  # Verifying provided user details for sign in
         self.__client.send(bytes(self.SIGN_IN +
-                                 dumps((username, str(int.from_bytes(sha3_256(password.encode("utf-8")).digest(),
-                                                                     "little")))), "utf-8"))  # Group A Skill, Hashing
-        return loads(self.__client.recv(1024).decode('utf-8'))
+                                 dumps((username, str(int.from_bytes(sha3_256(password.encode(self.ENCODING)).digest(),
+                                                                     "little")))), self.ENCODING))  # Group A Skill, Hashing
+        return loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
 
     def send_colours(self, username):
-        self.__client.send(bytes(self.SEND_COLOURS + dumps(username), "utf-8"))
+        self.__client.send(bytes(self.SEND_COLOURS + dumps(username), self.ENCODING))
         colours = []
-        response = loads(self.__client.recv(1024).decode('utf-8'))
+        response = loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
         for colour in response:
             colours.append(loads(colour))
         return colours
@@ -44,32 +46,27 @@ class Client:  # Class formats and sends requests to the server, receives and de
         colors_new = []
         for colour in colours:
             colors_new.append(dumps(colour))
-        self.__client.send(bytes(self.UPDATE_COLOURS + dumps((username, colors_new)), "utf-8"))
+        self.__client.send(bytes(self.UPDATE_COLOURS + dumps((username, colors_new)), self.ENCODING))
 
-    def save_game(self, puzzle, finished, player1_id, player2_id, game_sequence, starting_player):
+    def save_game(self, game_id, game_name, finished, player1, player2, game_sequence, meta_data):
         # Sending a request to store the game state with provided parameters
         game_sequence_str = ""
-        if puzzle:
-            game_sequence_str += starting_player
-            for row in game_sequence:
-                for col in row:
-                    game_sequence_str += col
-        else:
-            for move in game_sequence:
-                game_sequence_str += str(move[0]) + str(move[1])
-        self.__client.send(bytes(self.SAVE_GAME + dumps((puzzle, finished, player1_id, player2_id, game_sequence_str)),
-                                 "utf-8"))
-        return loads(self.__client.recv(1024).decode('utf-8'))
+        for move in game_sequence:
+            game_sequence_str += str(move)
+        self.__client.send(bytes(self.SAVE_GAME + dumps((game_id, game_name, finished, player1, player2,
+                                                         game_sequence_str, dumps(meta_data))), self.ENCODING))
+        return loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
 
     def retrieve_game(self, game_id):  # Retrieving a specific game to continue play or review
-        self.__client.send(bytes(self.RETRIEVE + dumps(game_id), "utf-8"))
-        return loads(self.__client.recv(1024).decode('utf-8'))
+        self.__client.send(bytes(self.RETRIEVE + dumps(game_id), self.ENCODING))
+        result = loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
+        return [result[0], loads(result[1])]
 
-    def show_played_games(self, player_id):  # Retrieving a set of games played by a certain player
-        self.__client.send(bytes(self.SHOW_PLAYED_GAMES + dumps(player_id), "utf-8"))
-        return loads(self.__client.recv(1024).decode('utf-8'))
+    def game_list(self, username, set_of_five_records, finished):
+        # Retrieving a set of games played by a certain player
+        self.__client.send(bytes(self.GAME_LIST + dumps((username, set_of_five_records * 5, finished)), self.ENCODING))
+        return loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
 
 
 if __name__ == '__main__':
-    c = Client()
-    print(c.sign_in("Tom", "bbb"))
+    pass

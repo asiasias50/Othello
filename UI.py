@@ -432,7 +432,7 @@ class GUI:  # Class provides Graphical User Interface for the game
 
             # Update cycle
             self.__screen.blit(self.LOGO_SURFACE, ((self.WINDOW_SIZE[0] - self.LOGO_SURFACE.get_rect().width) // 2, 0))
-            labels = ["Resume", "PvP", "PvAI", "Load", "Back"]
+            labels = ["PvP", "PvAI", "Load", "Back"]
             for index in range(0, len(labels)):
                 if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and \
                         initial_y_pos + index * step <= mouse_pos[1] <= initial_y_pos + index * step + self.BUTTON_HEIGHT:
@@ -450,7 +450,7 @@ class GUI:  # Class provides Graphical User Interface for the game
             pygame.display.update()
 
             # Events handling
-            event_functions = [self.__resume_game, self.__two_player_game, self.__one_player_game,
+            event_functions = [self.__two_player_game, self.__one_player_game,
                                self.__load_database_game]
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -860,11 +860,86 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                  (self.WINDOW_SIZE[1] - message_surface.get_rect().height) / 2))
             pygame.display.update()
 
-    def __game_cycle(self, game, timer, ai_status, player_is_first, ai_difficulty):  # Main game cycle
-        timers = [timer, timer]
-        character_relation = {game.characters()[0]: "Black", game.characters()[1]: "White", "Draw": "Draw"}
-        no_moves_flag = False
-        ai_flip_flag = not player_is_first
+    def __create_game_name(self):
+        create_name_surface = self.BUTTON_FONT.render("Create game name", False, self.TEXT_COLOUR)
+        game_name = ""
+
+        while True:
+            initial_y_pos = 110 + 50 * self.RESIZE_COEFFICIENT[1]
+            step = self.BUTTON_HEIGHT + 1.6 * self.BUTTON_HEIGHT * self.RESIZE_COEFFICIENT[1]
+
+            self.__screen.fill(self.BACKGROUND)
+            mouse_pos = pygame.mouse.get_pos()
+
+            # Update cycle
+            self.__screen.blit(create_name_surface,
+                               ((self.WINDOW_SIZE[0] - create_name_surface.get_rect().width) // 2,
+                                initial_y_pos - step * 0.5))
+
+            button_surface = self.BUTTON_FONT.render(game_name, False, self.TEXT_COLOUR)
+            input_width = max(self.BUTTON_WIDTH, button_surface.get_rect().width)
+            center = (self.WINDOW_SIZE[0] - input_width) // 2
+            if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and \
+                    initial_y_pos + step * 0.3 <= mouse_pos[1] <= initial_y_pos + step * 0.3 + self.BUTTON_HEIGHT:
+                pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (center, initial_y_pos + step * 0.3,
+                                                                     input_width, self.BUTTON_HEIGHT))
+            else:
+                pygame.draw.rect(self.__screen, self.BUTTONS, (center, initial_y_pos + step * 0.3,
+                                                               input_width, self.BUTTON_HEIGHT))
+            self.__screen.blit(button_surface, ((self.WINDOW_SIZE[0] - button_surface.get_rect().width) // 2,
+                                                initial_y_pos + step * 0.3))
+
+            center = (self.WINDOW_SIZE[0] - self.BUTTON_WIDTH) // 2
+            if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and \
+                    initial_y_pos + step <= mouse_pos[1] <= initial_y_pos + step + self.BUTTON_HEIGHT:
+                pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (center, initial_y_pos + step,
+                                                                     self.BUTTON_WIDTH, self.BUTTON_HEIGHT))
+            else:
+                pygame.draw.rect(self.__screen, self.BUTTONS, (center, initial_y_pos + step,
+                                                               self.BUTTON_WIDTH, self.BUTTON_HEIGHT))
+            button_surface = self.BUTTON_FONT.render("CONFIRM", False, self.TEXT_COLOUR)
+            self.__screen.blit(button_surface, ((self.WINDOW_SIZE[0] - button_surface.get_rect().width) // 2,
+                                                initial_y_pos + step))
+
+            self.__show_usernames()
+
+            pygame.display.update()
+
+            # Events handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                # Mouse clicking
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and \
+                            initial_y_pos + step <= mouse_pos[1] <= initial_y_pos + step + self.BUTTON_HEIGHT:
+                        if 0 < len(game_name):
+                            return game_name
+                        else:
+                            self.__show_message("Name is too short", False)
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_BACKSPACE:
+                        game_name = game_name[:-1]
+                    else:
+                        if len(game_name) < 20:
+                            game_name += event.unicode
+                # Window resizing
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
+                                               self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
+
+    def __game_cycle(self, game, timer, ai_status, player_is_first, ai_difficulty, loading="NULL"):  # Main game cycle
+        if loading == "NULL":
+            timers = [timer, timer]
+            character_relation = {game.characters()[0]: "Player 1", game.characters()[1]: "Player 2", "Draw": "Draw"}
+            no_moves_flag = False
+            ai_flip_flag = not player_is_first
+        else:
+            timers, no_moves_flag, ai_flip_flag, ai_status, ai_difficulty = loading[2]
+            game = GameMode()
+            game.load(loading[1])
         while True:
             possible_moves = game.possible_player_moves()
             if len(possible_moves) == 0:
@@ -904,6 +979,30 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                       character_relation[game.characters()[0]], ai_status, ai_flip_flag)
                             break
                     if move == self.QUIT:
+                        if loading == "NULL":
+                            if (self.__username_1 is not None) and (self.__username_2 is not None or ai_status):
+                                try:
+                                    client = Client()
+                                    game_name = self.__create_game_name()
+                                    if ai_status:
+                                        player_2 = "NULL"
+                                    else:
+                                        player_2 = self.__username_2
+                                    client.save_game(loading, game_name, False, self.__username_1, player_2,
+                                                     game.get_move_history(),
+                                                     (timers, no_moves_flag, ai_flip_flag, ai_status, ai_difficulty))
+                                    self.__show_message("Game is saved", True)
+                                except Exception:
+                                    self.__show_message("Server unavailable", True)
+                        else:
+                            try:
+                                client = Client()
+                                client.save_game(loading[0], None, False, None, None,
+                                                 game.get_move_history(),
+                                                 (timers, no_moves_flag, ai_flip_flag, ai_status, ai_difficulty))
+                                self.__show_message("Game is saved", True)
+                            except Exception:
+                                self.__show_message("Server unavailable", True)
                         return None
                     elif move == -1:
                         # Undo move
@@ -927,15 +1026,6 @@ class GUI:  # Class provides Graphical User Interface for the game
                 if ai_status:
                     # Enabling change of terns between the player and AI
                     ai_flip_flag = not ai_flip_flag
-
-
-    def __resume_game(self):  # Load game from file
-        try:
-            f = open("Last_Game_Save.txt", "rb")
-            game = load(f)
-            self.__game_cycle(game)
-        except IOError:
-            self.__show_message("Game cannot be loaded", True)
 
     def __two_player_game(self):  # 2 player game menu
         # Colours and Sizes
@@ -1290,8 +1380,109 @@ class GUI:  # Class provides Graphical User Interface for the game
                     self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
-    def __load_database_game(self):
-        pass
+    def __load_database_game(self, set_of_records=0):
+        if self.__username_1 is not None:
+            try:
+                client = Client()
+                records = client.game_list(self.__username_1, set_of_records, False)
+                del client
+            except Exception:
+                self.__show_message("Server unavailable", True)
+                return None
+        else:
+            self.__show_message("Log in or Register", True)
+            return None
+
+        # Update loop
+        columns = ["Game", "Opponent"]
+        labels = ["BACK", "MENU", "NEXT"]
+
+        while True:
+            initial_y_pos = 100 * self.RESIZE_COEFFICIENT[1]
+            step = self.BUTTON_HEIGHT + self.BUTTON_HEIGHT * self.RESIZE_COEFFICIENT[1]
+            button_width = self.WINDOW_SIZE[0] - 50
+            center = (self.WINDOW_SIZE[0] - button_width) // 2
+
+            self.__screen.fill(self.BACKGROUND)
+            mouse_pos = pygame.mouse.get_pos()
+
+            # Update cycle
+            button_surface = self.BUTTON_FONT.render(columns[0], False, self.TEXT_COLOUR)
+            self.__screen.blit(button_surface, (center, initial_y_pos // 2))
+            button_surface = self.BUTTON_FONT.render(columns[1], False, self.TEXT_COLOUR)
+            self.__screen.blit(button_surface, (center + button_width // 2, initial_y_pos // 2))
+            for index in range(0, len(records)):
+                if center <= mouse_pos[0] <= center + button_width and \
+                        initial_y_pos + step * index <= mouse_pos[1] <= \
+                        initial_y_pos + step * index + self.BUTTON_HEIGHT:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER,
+                                     (center, initial_y_pos + step * index, button_width, self.BUTTON_HEIGHT))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS,
+                                     (center, initial_y_pos + step * index, button_width, self.BUTTON_HEIGHT))
+                button_surface = self.BUTTON_FONT.render(records[index][2], False, self.TEXT_COLOUR)
+                self.__screen.blit(button_surface, (center, initial_y_pos + step * index))
+                button_surface = self.BUTTON_FONT.render(records[index][1], False, self.TEXT_COLOUR)
+                self.__screen.blit(button_surface, (center + button_width // 2, initial_y_pos + step * index))
+            last_y_pos = initial_y_pos + step * 5
+
+            for index in range(0, len(labels)):
+                button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
+                extra_buttons_width = button_surface.get_rect().width
+                if center + (button_width // 3) * index <= mouse_pos[0] <= center + \
+                        (button_width // 3) * index + extra_buttons_width and \
+                        last_y_pos <= mouse_pos[1] <= last_y_pos + self.BUTTON_HEIGHT:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER,
+                                     (center + (button_width // 3) * index, last_y_pos,
+                                      extra_buttons_width, self.BUTTON_HEIGHT))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS,
+                                     (center + (button_width // 3) * index, last_y_pos,
+                                      extra_buttons_width, self.BUTTON_HEIGHT))
+                self.__screen.blit(button_surface, (center + (button_width // 3) * index, last_y_pos))
+
+            pygame.display.update()
+
+            # Events handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                # Mouse clicking
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    for index in range(0, len(records)):
+                        if center <= mouse_pos[0] <= center + button_width and \
+                                initial_y_pos + step * index <= mouse_pos[1] <= \
+                                initial_y_pos + step * index + self.BUTTON_HEIGHT:
+                            if self.__username_2 == records[index][1] or records[index][1] == "AI":
+                                client = Client()
+                                response = client.retrieve_game(records[index][0])
+                                del client
+                                response = [records[index][0], response[0], response[1]]
+                                self.__game_cycle(None, None, None, None, None, response)
+                                return None
+
+                    for index in range(0, len(labels)):
+                        button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
+                        extra_buttons_width = button_surface.get_rect().width
+                        if center + (button_width // 3) * index <= mouse_pos[0] <= center + \
+                                (button_width // 3) * index + extra_buttons_width and \
+                                last_y_pos <= mouse_pos[1] <= last_y_pos + self.BUTTON_HEIGHT:
+                            if index == 0:
+                                if set_of_records > 0:
+                                    self.__load_database_game(set_of_records - 1)
+                                    return None
+                            elif index == 2:
+                                if len(records) > 0:
+                                    self.__load_database_game(set_of_records + 1)
+                                    return None
+                            elif index == 1:
+                                return None
+                # Window resizing
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
+                                               self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
 
 def main():
