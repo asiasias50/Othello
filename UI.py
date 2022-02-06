@@ -444,7 +444,7 @@ class GUI:  # Class provides Graphical User Interface for the game
 
             # Update cycle
             self.__screen.blit(self.LOGO_SURFACE, ((self.WINDOW_SIZE[0] - self.LOGO_SURFACE.get_rect().width) // 2, 0))
-            labels = ["PvP", "PvAI", "Load", "Back"]
+            labels = ["PvP", "PvAI", "Load", "Tutorial", "Back"]
             for index in range(0, len(labels)):
                 if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and \
                         initial_y_pos + index * step <= mouse_pos[1] <= initial_y_pos + index * step + self.BUTTON_HEIGHT:
@@ -463,7 +463,7 @@ class GUI:  # Class provides Graphical User Interface for the game
 
             # Events handling
             event_functions = [self.__two_player_game, self.__one_player_game,
-                               self.__load_database_game]
+                               self.__load_database_game, self.__tutorial]
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -1870,6 +1870,27 @@ class GUI:  # Class provides Graphical User Interface for the game
                     self.WINDOW_SIZE = pygame.display.get_surface().get_size()
                     self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
+
+    def __tutorial(self):
+        game = GameMode()
+        tips = ["Place a piece in available space",
+                "Now its opponents go",
+                "Game continues until board is filled",
+                "Try to capture corners, it is optimal",
+                "Good Luck"]
+
+        for index in range(0, len(tips)):
+            self.__show_message(tips[index], True)
+            if index < len(tips) - 1:
+                move = self.__display_game_board(game.get_board(), game.possible_player_moves(),
+                                                 game.get_current_player(),
+                                                 game.characters(), game.get_number_of_pieces(), [None, None], None,
+                                                 False,
+                                                 False)
+                if move == self.QUIT:
+                    return None
+                game.play(move)
+        return None
 
 
 def main():
