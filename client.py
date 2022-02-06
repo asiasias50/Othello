@@ -14,6 +14,7 @@ class Client:  # Class formats and sends requests to the server, receives and de
     GAME_LIST = "gl"
     SEND_COLOURS = "sc"
     UPDATE_COLOURS = "uc"
+    ARCHIVE = "ar"
 
     def __init__(self):  # Initialisation of connection with the server
         self.__client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -65,6 +66,10 @@ class Client:  # Class formats and sends requests to the server, receives and de
     def game_list(self, username, set_of_five_records, finished):
         # Retrieving a set of games played by a certain player
         self.__client.send(bytes(self.GAME_LIST + dumps((username, set_of_five_records * 5, finished)), self.ENCODING))
+        return loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
+
+    def archive(self, set_of_five_records, username):
+        self.__client.send(bytes(self.ARCHIVE + dumps((set_of_five_records * 5, username)), self.ENCODING))
         return loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
 
 

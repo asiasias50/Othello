@@ -193,7 +193,7 @@ class GUI:  # Class provides Graphical User Interface for the game
             pass
 
         # Labels
-        labels = ["PLAY", "SIGN IN", "REGISTER", "SETTINGS"]
+        labels = ["PLAY", "SIGN IN", "REGISTER", "ARCHIVE", "SETTINGS"]
 
 
         # Game Loop
@@ -238,6 +238,8 @@ class GUI:  # Class provides Graphical User Interface for the game
                                 self.__sign_in_menu(False)
                             elif index == 2:
                                 self.__sign_in_menu(True)
+                            elif index == 3:
+                                self.__archive()
                             else:
                                 self.__settings()
                 # Window resizing
@@ -945,10 +947,35 @@ class GUI:  # Class provides Graphical User Interface for the game
             if len(possible_moves) == 0:
                 if no_moves_flag:
                     # No moves, game ends
+                    win_status = game.win_status()
                     self.__display_game_board(game.get_board(), possible_moves, game.get_current_player(),
                                               game.characters(), game.get_number_of_pieces(),
-                                              [timers[0], timers[1], start_time], character_relation[game.win_status()],
+                                              [timers[0], timers[1], start_time], character_relation[win_status],
                                               ai_status, ai_flip_flag)
+                    win_indexes = {game.characters()[0]: 1, game.characters()[1]: 2, "Draw": 3}
+                    try:
+                        if loading == "NULL":
+                            if (self.__username_1 is not None) and (self.__username_2 is not None or ai_status):
+                                client = Client()
+                                game_name = self.__create_game_name()
+                                if ai_status:
+                                    player_2 = "NULL"
+                                else:
+                                    player_2 = self.__username_2
+                                client.save_game(loading, game_name, win_indexes[win_status], self.__username_1,
+                                                 player_2, game.get_move_history(),
+                                                 (timers, no_moves_flag, ai_flip_flag, ai_status, ai_difficulty))
+                                self.__show_message("Game is saved", True)
+                                del client
+                        else:
+                            client = Client()
+                            client.save_game(loading[0], None, win_indexes[win_status], None, None,
+                                             game.get_move_history(),
+                                             (timers, no_moves_flag, ai_flip_flag, ai_status, ai_difficulty))
+                            self.__show_message("Game is saved", True)
+                            del client
+                    except Exception:
+                        self.__show_message("Server unavailable", True)
                     break
                 else:
                     no_moves_flag = True
@@ -1461,6 +1488,112 @@ class GUI:  # Class provides Graphical User Interface for the game
                                 response = [records[index][0], response[0], response[1]]
                                 self.__game_cycle(None, None, None, None, None, response)
                                 return None
+
+                    for index in range(0, len(labels)):
+                        button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
+                        extra_buttons_width = button_surface.get_rect().width
+                        if center + (button_width // 3) * index <= mouse_pos[0] <= center + \
+                                (button_width // 3) * index + extra_buttons_width and \
+                                last_y_pos <= mouse_pos[1] <= last_y_pos + self.BUTTON_HEIGHT:
+                            if index == 0:
+                                if set_of_records > 0:
+                                    self.__load_database_game(set_of_records - 1)
+                                    return None
+                            elif index == 2:
+                                if len(records) > 0:
+                                    self.__load_database_game(set_of_records + 1)
+                                    return None
+                            elif index == 1:
+                                return None
+                # Window resizing
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
+                                               self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
+
+    def __archive(self, set_of_records=0, username=None):
+        if self.__username_1 is not None:
+            try:
+                client = Client()
+                records = client.archive(set_of_records, username)
+                del client
+            except Exception:
+                self.__show_message("Server unavailable", True)
+                return None
+        else:
+            self.__show_message("Log in or Register", True)
+            return None
+
+        # Update loop
+        columns = ["Game", "Player", "Opponent", "Winner"]
+        labels = ["BACK", "MENU", "NEXT"]
+
+        while True:
+            initial_y_pos = 100 * self.RESIZE_COEFFICIENT[1]
+            step = self.BUTTON_HEIGHT + self.BUTTON_HEIGHT * self.RESIZE_COEFFICIENT[1]
+            button_width = self.WINDOW_SIZE[0] - 50
+            center = (self.WINDOW_SIZE[0] - button_width) // 2
+
+            self.__screen.fill(self.BACKGROUND)
+            mouse_pos = pygame.mouse.get_pos()
+
+            # Update cycle
+            for index in range(0, len(columns)):
+                button_surface = self.BUTTON_FONT.render(columns[index], False, self.TEXT_COLOUR)
+                self.__screen.blit(button_surface, (center + index * (button_width // len(columns)),
+                                                    initial_y_pos // 2))
+
+            for index in range(0, len(records)):
+                if center <= mouse_pos[0] <= center + button_width and \
+                        initial_y_pos + step * index <= mouse_pos[1] <= \
+                        initial_y_pos + step * index + self.BUTTON_HEIGHT:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER,
+                                     (center, initial_y_pos + step * index, button_width, self.BUTTON_HEIGHT))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS,
+                                     (center, initial_y_pos + step * index, button_width, self.BUTTON_HEIGHT))
+                for record_pos in range(0, len(records[index]) - 1):
+                    if record_pos == len(records[index]) - 2:
+                        message = {1: str(records[index][1]),
+                                   2: str(records[index][2]),
+                                   3: "Draw"}[records[index][record_pos]]
+                    else:
+                        message = str(records[index][record_pos])
+                    button_surface = self.BUTTON_FONT.render(message, False, self.TEXT_COLOUR)
+                    self.__screen.blit(button_surface, (center + record_pos * (button_width // len(columns)),
+                                                        initial_y_pos + step * index))
+            last_y_pos = initial_y_pos + step * 5
+
+            for index in range(0, len(labels)):
+                button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
+                extra_buttons_width = button_surface.get_rect().width
+                if center + (button_width // 3) * index <= mouse_pos[0] <= center + \
+                        (button_width // 3) * index + extra_buttons_width and \
+                        last_y_pos <= mouse_pos[1] <= last_y_pos + self.BUTTON_HEIGHT:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER,
+                                     (center + (button_width // 3) * index, last_y_pos,
+                                      extra_buttons_width, self.BUTTON_HEIGHT))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS,
+                                     (center + (button_width // 3) * index, last_y_pos,
+                                      extra_buttons_width, self.BUTTON_HEIGHT))
+                self.__screen.blit(button_surface, (center + (button_width // 3) * index, last_y_pos))
+
+            pygame.display.update()
+
+            # Events handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                # Mouse clicking
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    for index in range(0, len(records)):
+                        if center <= mouse_pos[0] <= center + button_width and \
+                                initial_y_pos + step * index <= mouse_pos[1] <= \
+                                initial_y_pos + step * index + self.BUTTON_HEIGHT:
+                            if self.__username_2 == records[index][1] or records[index][1] == "AI":
+                                pass
 
                     for index in range(0, len(labels)):
                         button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)

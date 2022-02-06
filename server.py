@@ -15,13 +15,15 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
     GAME_LIST = "gl"
     SEND_COLOURS = "sc"
     UPDATE_COLOURS = "uc"
+    ARCHIVE = "ar"
 
     def __init__(self):
         self.__procedure_list = {self.CREATE_ACCOUNT: self.__create_account, self.SIGN_IN: self.__sign_in,
                                  self.SAVE_GAME: self.__save_game, self.RETRIEVE: self.__retrieve_game,
                                  self.GAME_LIST: self.__game_list,
                                  self.SEND_COLOURS: self.__send_colours,
-                                 self.UPDATE_COLOURS: self.__update_colours}
+                                 self.UPDATE_COLOURS: self.__update_colours,
+                                 self.ARCHIVE: self.__archive}
         # Establishing connection with MySQL database
         # Group A skill, Server-side extension
         self.__database = self.__connect_to_database()
@@ -141,6 +143,43 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
                 self.__cursor.execute(f'SELECT username FROM user_information WHERE player_id = {record[1]}')
                 result_per_record.append(self.__cursor.fetchall()[0][0])
             result_per_record.append(record[2])
+            result.append(result_per_record)
+        client.send(bytes(dumps(result), self.ENCODING))
+
+    def __archive(self, arguments, client):
+        set_of_five_records, username = arguments
+        if username is None:
+            self.__cursor.execute(f'SELECT games_played.game_name, games_played.player1_id, games_played.player2_id, '
+                                  f'game_information.finished, games_played.game_id '
+                                  f'FROM games_played INNER JOIN game_information ON'
+                                  f' games_played.game_id = game_information.game_id '
+                                  f'WHERE game_information.finished != "{0}"'
+                                  f'ORDER BY games_played.game_id DESC')
+        else:
+            self.__cursor.execute(f'SELECT player_id FROM user_information WHERE username = "{username}"')
+            username = self.__cursor.fetchall()[0][0]
+            self.__cursor.execute(f'SELECT games_played.game_name, games_played.player1_id, games_played.player2_id, '
+                                  f'game_information.finished, games_played.game_id '
+                                  f'FROM games_played INNER JOIN game_information ON'
+                                  f' games_played.game_id = game_information.game_id '
+                                  f'WHERE game_information.finished != "{0}"'
+                                  f'AND (games_played.player1_id = "{username}" OR'
+                                  f' games_played.player2_id = "{username}")'
+                                  f'ORDER BY games_played.game_id DESC')
+        game_names_and_IDs = self.__cursor.fetchall()[0 + set_of_five_records:5 + set_of_five_records]
+        result = []
+        for record in game_names_and_IDs:
+            result_per_record = []
+            result_per_record.append(record[0])
+            self.__cursor.execute(f'SELECT username FROM user_information WHERE player_id = {record[1]}')
+            result_per_record.append(self.__cursor.fetchall()[0][0])
+            if record[2] == 0:
+                result_per_record.append("AI")
+            else:
+                self.__cursor.execute(f'SELECT username FROM user_information WHERE player_id = {record[2]}')
+                result_per_record.append(self.__cursor.fetchall()[0][0])
+            result_per_record.append(record[3])
+            result_per_record.append(record[4])
             result.append(result_per_record)
         client.send(bytes(dumps(result), self.ENCODING))
 
