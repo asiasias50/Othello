@@ -138,6 +138,7 @@ class Board:  # Class contains a representation of game board and performs all b
         self.__grid[4][3] = self.BLACK
         # Initialisation of the boundary to optimise time to search for possible moves
         self.__boundary = {}
+        self.__boundary_story = []
         self.__initialise_boundary()
         self.__current_player = self.BLACK
         self.__opponents = {self.BLACK: self.WHITE, self.WHITE: self.BLACK}
@@ -216,6 +217,7 @@ class Board:  # Class contains a representation of game board and performs all b
             self.__moves_story_indexes.append(move)
 
             # Boundary update
+            self.__boundary_story.append(self.__boundary.copy())
             del self.__boundary[(row, col)]
             for row_change in [-1, 0, 1]:
                 for col_change in [-1, 0, 1]:
@@ -236,7 +238,7 @@ class Board:  # Class contains a representation of game board and performs all b
                     self.__grid[move[0] + effect[0] * scale][move[1] + effect[1] * scale] = self.__current_player
             self.__grid[move[0]][move[1]] = self.EMPTY
             self.__current_player = self.__opponents[self.__current_player]
-            self.__boundary[(move[0], move[1])] = 0
+            self.__boundary = self.__boundary_story.pop()
 
     def get_board(self):  # Returns board to be shown to user via UI
         return self.__grid

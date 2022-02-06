@@ -53,11 +53,14 @@ class Terminal:  # Class implements terminal version of the UI
                     if len(possible_moves) == 0:
                         input(f"{self.__players[self.__Game.get_current_player()]} has no moves to make.")
                         if no_moves_flag:
+                            piece_count = self.__Game.get_number_of_pieces()
+                            self.__print_state([], piece_count)
                             win_status = self.__Game.win_status()
                             if win_status == "Draw":
                                 print("Game is finished in a draw.")
                             else:
                                 print(f"Game is finished, {self.__players[win_status]} won.")
+                                print(f"Black has {piece_count[0]} pieces, White has {piece_count[1]} pieces.")
                             break
                         else:
                             no_moves_flag = True
@@ -65,7 +68,7 @@ class Terminal:  # Class implements terminal version of the UI
                     else:
                         no_moves_flag = False
                         if not ai_flip_flag:
-                            self.__print_state(possible_moves)
+                            self.__print_state(possible_moves, self.__Game.get_number_of_pieces())
                             move = self.__get_move_from_player(possible_moves)
                             if move is None:
                                 self.__store_game_state()
@@ -74,7 +77,7 @@ class Terminal:  # Class implements terminal version of the UI
                             else:
                                 self.__Game.play(move)
                         else:
-                            self.__print_state(possible_moves)
+                            self.__print_state(possible_moves, self.__Game.get_number_of_pieces())
                             input("AI is thinking. Press Enter to continue. ")
                             move = self.__Game.get_ai_move(possible_moves, 4, float("inf"))
                             self.__Game.play(move)
@@ -121,17 +124,18 @@ class Terminal:  # Class implements terminal version of the UI
         return possible_moves.index([move[0] - 1, move[1] - 1])
 
     def __store_game_state(self):  # Stores game state to a text file
-        with open("Last_Game_Save.txt", "wb") as f:
-            dump(self.__Game, f)
+        with open("Last_Game_Save.txt", "wb") as file:
+            dump(self.__Game, file)
 
     def __load_game_state(self):  # Loads game from a text file
         try:
-            f = open("Last_Game_Save.txt", "rb")
-            self.__Game = load(f)
+            file = open("Last_Game_Save.txt", "rb")
+            self.__Game = load(file)
+            file.close()
         except IOError:
             self.__Game = None
 
-    def __print_state(self, possible_moves):  # Prints out a board with pieces into a terminal
+    def __print_state(self, possible_moves, piece_count):  # Prints out a board with pieces into a terminal
         board = self.__Game.get_board()
         print()
         print("  ", end='')
@@ -146,6 +150,8 @@ class Terminal:  # Class implements terminal version of the UI
                 else:
                     print(board[row][col], end='|')
             print("\b")
+        print()
+        print(f"Black has {piece_count[0]} pieces, White has {piece_count[1]} pieces.")
         print()
 
 
@@ -164,7 +170,7 @@ class GUI:  # Class provides Graphical User Interface for the game
     WHITE = (255, 255, 255)
 
     # Board colours
-    GREEN_BOARD = (0, 118, 7)
+    BOARD = (0, 118, 7)
     FIRST_PLAYER = (0, 0, 0)
     FIRST_PLAYER_PALE = (39, 39, 39)
     SECOND_PLAYER = (255, 255, 255)
@@ -172,9 +178,11 @@ class GUI:  # Class provides Graphical User Interface for the game
 
     QUIT = "Q"
     pygame.font.init()
-    USERNAME_FONT = pygame.font.SysFont("Open Sans", 40)
-    LOGO_SURFACE = pygame.font.SysFont("Open Sans", 200).render("Othello", False, TEXT_COLOUR)
-    BUTTON_FONT = pygame.font.SysFont("Open Sans", 80)
+    OPEN_SANS = "Open Sans"
+    SERVER_UNAVAILABLE = "Server unavailable"
+    USERNAME_FONT = pygame.font.SysFont(OPEN_SANS, 40)
+    LOGO_SURFACE = pygame.font.SysFont(OPEN_SANS, 200).render("Othello", False, TEXT_COLOUR)
+    BUTTON_FONT = pygame.font.SysFont(OPEN_SANS, 80)
 
     def __init__(self):  # Initialising PyGame window
         pygame.init()
@@ -390,7 +398,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                                     self.SECOND_PLAYER_PALE = (colours[1][0] // 2,
                                                                colours[1][1] // 2,
                                                                colours[1][2] // 2)
-                                    self.GREEN_BOARD = colours[2]
+                                    self.BOARD = colours[2]
                                 self.__show_message("Success", False)
                                 return None
                             elif request_result == 0:
@@ -403,7 +411,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                             request_result = client.create_account(user_input[0], user_input[1],
                                                                    (self.FIRST_PLAYER,
                                                                     self.SECOND_PLAYER,
-                                                                    self.GREEN_BOARD))
+                                                                    self.BOARD))
                             if request_result:
                                 self.__show_message("Account Created", False)
                                 return None
@@ -523,7 +531,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                                     try:
                                         client = Client()
                                         client.update_colours(self.__username_1,
-                                                              (self.FIRST_PLAYER, self.SECOND_PLAYER, self.GREEN_BOARD))
+                                                              (self.FIRST_PLAYER, self.SECOND_PLAYER, self.BOARD))
                                     except Exception:
                                         pass
                                 return None
@@ -543,7 +551,7 @@ class GUI:  # Class provides Graphical User Interface for the game
         elif player_or_board == 1:
             new_colour = [self.SECOND_PLAYER[0], self.SECOND_PLAYER[1], self.SECOND_PLAYER[2]]
         else:
-            new_colour = [self.GREEN_BOARD[0], self.GREEN_BOARD[1], self.GREEN_BOARD[2]]
+            new_colour = [self.BOARD[0], self.BOARD[1], self.BOARD[2]]
 
         for index in range(0, len(new_colour)):
             new_colour[index] = str(new_colour[index])
@@ -615,7 +623,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                                converted_colour[1] // 2,
                                                                converted_colour[2] // 2)
                                 else:
-                                    self.GREEN_BOARD = converted_colour
+                                    self.BOARD = converted_colour
                                 return None
                             else:
                                 input_position = index
@@ -649,12 +657,12 @@ class GUI:  # Class provides Graphical User Interface for the game
             offset_y = initial_pos_y + (step_in_pixels / 2)
 
             # Counter constants
-            counter_font = pygame.font.SysFont("Open Sans", int(50 * min(self.RESIZE_COEFFICIENT)))
+            counter_font = pygame.font.SysFont(self.OPEN_SANS, int(50 * min(self.RESIZE_COEFFICIENT)))
             black_count_surface = counter_font.render(f"X{counters[0]}", False, self.FIRST_PLAYER)
             white_count_surface = counter_font.render(f"X{counters[1]}", False, self.SECOND_PLAYER)
 
             # AI constants
-            ai_font = pygame.font.SysFont("Open Sans", int(80 * min(self.RESIZE_COEFFICIENT)))
+            ai_font = pygame.font.SysFont(self.OPEN_SANS, int(80 * min(self.RESIZE_COEFFICIENT)))
             ai_message = ai_font.render("Calculating...", False, self.BLACK)
             ai_box_x = ai_message.get_rect().width + 100
             ai_box_y = ai_message.get_rect().height + 40
@@ -662,7 +670,7 @@ class GUI:  # Class provides Graphical User Interface for the game
             ai_box_pos_y = (self.WINDOW_SIZE[1] - ai_box_y) / 2
 
             # Undo constants
-            undo_font = pygame.font.SysFont("Open Sans", 50)
+            undo_font = pygame.font.SysFont(self.OPEN_SANS, 50)
             undo_image = undo_font.render("Undo", False, self.BLACK)
             undo_x = offset_x + step_in_pixels * 2 - 23 * min(self.RESIZE_COEFFICIENT)
             undo_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
@@ -676,7 +684,7 @@ class GUI:  # Class provides Graphical User Interface for the game
             mouse_pos = pygame.mouse.get_pos()
 
             # Update cycle
-            pygame.draw.rect(self.__screen, self.GREEN_BOARD, (initial_pos_x, initial_pos_y, board_side, board_side))
+            pygame.draw.rect(self.__screen, self.BOARD, (initial_pos_x, initial_pos_y, board_side, board_side))
             for index in range(0, 9):
                 pygame.draw.line(self.__screen, self.FIRST_PLAYER, (initial_pos_x, initial_pos_y + step_in_pixels * index),
                                  (initial_pos_x + board_side, initial_pos_y + step_in_pixels * index))
@@ -836,7 +844,7 @@ class GUI:  # Class provides Graphical User Interface for the game
     def __show_message(self, text, fill):  # Shows a pop up message on the screen
         message_colour = (194, 0, 0)
         box_colour = (0, 0, 0)
-        message_font = pygame.font.SysFont("Open Sans", 80)
+        message_font = pygame.font.SysFont(self.OPEN_SANS, 80)
         message_surface = message_font.render(text, False, message_colour)
         message_box_x = message_surface.get_rect().width + 70
         message_box_y = message_surface.get_rect().height + 40
@@ -977,7 +985,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                             self.__show_message("Game is saved", True)
                             del client
                     except Exception:
-                        self.__show_message("Server unavailable", True)
+                        self.__show_message(self.SERVER_UNAVAILABLE, True)
                     break
                 else:
                     no_moves_flag = True
@@ -1022,7 +1030,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                      (timers, no_moves_flag, ai_flip_flag, ai_status, ai_difficulty))
                                     self.__show_message("Game is saved", True)
                                 except Exception:
-                                    self.__show_message("Server unavailable", True)
+                                    self.__show_message(self.SERVER_UNAVAILABLE, True)
                         else:
                             try:
                                 client = Client()
@@ -1031,7 +1039,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                  (timers, no_moves_flag, ai_flip_flag, ai_status, ai_difficulty))
                                 self.__show_message("Game is saved", True)
                             except Exception:
-                                self.__show_message("Server unavailable", True)
+                                self.__show_message(self.SERVER_UNAVAILABLE, True)
                         return None
                     elif move == -1:
                         # Undo move
@@ -1063,12 +1071,12 @@ class GUI:  # Class provides Graphical User Interface for the game
         black = (0, 0, 0)
         green = (0, 246, 22)
         pale_green = (0, 123, 11)
-        time_text_font = pygame.font.SysFont("Open Sans", 90)
+        time_text_font = pygame.font.SysFont(self.OPEN_SANS, 90)
         check_box_surface = time_text_font.render("Timer Enabled", False, black)
         outer_box_size = 50
         inner_box_size = 40
-        timer_font = pygame.font.SysFont("Open Sans", 150)
-        start_font = pygame.font.SysFont("Open Sans", 100)
+        timer_font = pygame.font.SysFont(self.OPEN_SANS, 150)
+        start_font = pygame.font.SysFont(self.OPEN_SANS, 100)
         start_colour = (0, 165, 158)
         start_surface = start_font.render("Start", False, start_colour, self.BACKGROUND)
         back_surface = start_font.render("Back", False, start_colour, self.BACKGROUND)
@@ -1205,7 +1213,7 @@ class GUI:  # Class provides Graphical User Interface for the game
         black = (0, 0, 0)
         green = (0, 246, 22)
         pale_green = (0, 123, 11)
-        time_text_font = pygame.font.SysFont("Open Sans", 90)
+        time_text_font = pygame.font.SysFont(self.OPEN_SANS, 90)
         timer_check_box_surface = time_text_font.render("Timer Enabled", False, black)
         ai_check_box_surface = time_text_font.render("AI", False, black)
         player_check_box_surface = time_text_font.render("Player", False, black)
@@ -1215,8 +1223,8 @@ class GUI:  # Class provides Graphical User Interface for the game
         difficulty_value = 1
         outer_box_size = 50
         inner_box_size = 40
-        timer_font = pygame.font.SysFont("Open Sans", 150)
-        start_font = pygame.font.SysFont("Open Sans", 100)
+        timer_font = pygame.font.SysFont(self.OPEN_SANS, 150)
+        start_font = pygame.font.SysFont(self.OPEN_SANS, 100)
         start_colour = (0, 165, 158)
         start_surface = start_font.render("Start", False, start_colour, self.BACKGROUND)
         back_surface = start_font.render("Back", False, start_colour, self.BACKGROUND)
@@ -1416,7 +1424,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                 records = client.game_list(self.__username_1, set_of_records, False)
                 del client
             except Exception:
-                self.__show_message("Server unavailable", True)
+                self.__show_message(self.SERVER_UNAVAILABLE, True)
                 return None
         else:
             self.__show_message("Log in or Register", True)
@@ -1520,7 +1528,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                 records = client.archive(set_of_records, username)
                 del client
             except Exception:
-                self.__show_message("Server unavailable", True)
+                self.__show_message(self.SERVER_UNAVAILABLE, True)
                 return None
         else:
             self.__show_message("Log in or Register", True)
@@ -1594,7 +1602,14 @@ class GUI:  # Class provides Graphical User Interface for the game
                         if center <= mouse_pos[0] <= center + button_width and \
                                 initial_y_pos + step * index <= mouse_pos[1] <= \
                                 initial_y_pos + step * index + self.BUTTON_HEIGHT:
-                            pass
+                            try:
+                                client = Client()
+                                game = client.retrieve_game(records[index][-1])
+                                del client
+                            except Exception:
+                                print("lol")
+                                self.__show_message(self.SERVER_UNAVAILABLE, True)
+                            self.__watch_game(game[0])
 
                     for index in range(0, len(labels)):
                         button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
@@ -1625,7 +1640,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                 records = client.rating(set_of_records)
                 del client
             except Exception:
-                self.__show_message("Server unavailable", True)
+                self.__show_message(self.SERVER_UNAVAILABLE, True)
                 return None
         else:
             self.__show_message("Log in or Register", True)
@@ -1714,6 +1729,142 @@ class GUI:  # Class provides Graphical User Interface for the game
                                     return None
                             elif index == 1:
                                 return None
+                # Window resizing
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
+                                               self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
+
+    def __watch_game(self, game_sequence):
+        move = 0
+        game = GameMode()
+
+        response = self.__watch_board_display(game.get_board(), game.get_number_of_pieces(), game.characters())
+        while response != self.QUIT:
+            if response == -1:
+                game.undo_move()
+                if move > 0:
+                    move -= 1
+            elif response == 1:
+                if move < len(game_sequence):
+                    game.possible_player_moves()
+                    game.play(int(game_sequence[move]))
+                    move += 1
+            response = self.__watch_board_display(game.get_board(), game.get_number_of_pieces(), game.characters())
+        return None
+
+    def __watch_board_display(self, board, counters, characters):
+        # Main loop
+        while True:
+            board_side = 600 * min(self.RESIZE_COEFFICIENT)
+            initial_pos_x = (self.WINDOW_SIZE[0] - board_side) // 2
+            initial_pos_y = (self.WINDOW_SIZE[1] - board_side) // 2
+            step_in_pixels = 75 * min(self.RESIZE_COEFFICIENT)
+            piece_radius = 34 * min(self.RESIZE_COEFFICIENT)
+            offset_x = initial_pos_x + (step_in_pixels / 2)
+            offset_y = initial_pos_y + (step_in_pixels / 2)
+
+            # Counter constants
+            counter_font = pygame.font.SysFont(self.OPEN_SANS, int(50 * min(self.RESIZE_COEFFICIENT)))
+            black_count_surface = counter_font.render(f"X{counters[0]}", False, self.FIRST_PLAYER)
+            white_count_surface = counter_font.render(f"X{counters[1]}", False, self.SECOND_PLAYER)
+
+            # Undo constants
+            undo_font = pygame.font.SysFont(self.OPEN_SANS, 50)
+            undo_image = undo_font.render("Undo", False, self.BLACK)
+            undo_x = offset_x + step_in_pixels * 2 - 23 * min(self.RESIZE_COEFFICIENT)
+            undo_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
+
+            # Quit constants
+            quit_image = undo_font.render("Quit", False, self.BLACK)
+            quit_x = offset_x + step_in_pixels * 4 - 23 * min(self.RESIZE_COEFFICIENT)
+            quit_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
+
+            # Next constants
+            next_image = undo_font.render("Next", False, self.BLACK)
+            next_x = offset_x + step_in_pixels * 5 - 23 * min(self.RESIZE_COEFFICIENT)
+            next_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
+
+            self.__screen.fill(self.BACKGROUND)
+            mouse_pos = pygame.mouse.get_pos()
+
+            # Update cycle
+            pygame.draw.rect(self.__screen, self.BOARD, (initial_pos_x, initial_pos_y, board_side, board_side))
+            for index in range(0, 9):
+                pygame.draw.line(self.__screen, self.FIRST_PLAYER,
+                                 (initial_pos_x, initial_pos_y + step_in_pixels * index),
+                                 (initial_pos_x + board_side, initial_pos_y + step_in_pixels * index))
+                pygame.draw.line(self.__screen, self.FIRST_PLAYER,
+                                 (initial_pos_x + step_in_pixels * index, initial_pos_y),
+                                 (initial_pos_x + step_in_pixels * index, initial_pos_y + board_side))
+            for row in range(0, 8):
+                for col in range(0, 8):
+                    if board[row][col] == characters[0]:
+                        pygame.draw.circle(self.__screen, self.FIRST_PLAYER,
+                                           (offset_x + step_in_pixels * col, offset_y +
+                                            step_in_pixels * row), piece_radius)
+                    elif board[row][col] == characters[1]:
+                        pygame.draw.circle(self.__screen, self.SECOND_PLAYER,
+                                           (offset_x + step_in_pixels * col, offset_y +
+                                            step_in_pixels * row), piece_radius)
+
+            # Undo button
+            try:
+                undo_image = pygame.image.load("Undo.svg")
+                undo_image = pygame.transform.scale(undo_image, (
+                    int(65 * min(self.RESIZE_COEFFICIENT)), int(65 * min(self.RESIZE_COEFFICIENT))))
+            except FileNotFoundError:
+                pass
+            self.__screen.blit(undo_image, (undo_x, undo_y))
+
+            # Quit button
+            try:
+                quit_image = pygame.image.load("Quit.svg")
+                quit_image = pygame.transform.scale(quit_image, (
+                    int(50 * min(self.RESIZE_COEFFICIENT)), int(50 * min(self.RESIZE_COEFFICIENT))))
+            except FileNotFoundError:
+                pass
+            self.__screen.blit(quit_image, (quit_x, quit_y))
+
+            # Next button
+            try:
+                next_image = pygame.image.load("Next.svg")
+                next_image = pygame.transform.scale(next_image, (
+                    int(50 * min(self.RESIZE_COEFFICIENT)), int(50 * min(self.RESIZE_COEFFICIENT))))
+            except FileNotFoundError:
+                pass
+            self.__screen.blit(next_image, (next_x, next_y))
+
+            # Piece counters
+            pygame.draw.circle(self.__screen, self.FIRST_PLAYER, (offset_x, offset_y + step_in_pixels * 8),
+                               piece_radius)
+            self.__screen.blit(black_count_surface, (offset_x + step_in_pixels - 35 * min(self.RESIZE_COEFFICIENT),
+                                                     offset_y + step_in_pixels * 8 - 15 * min(self.RESIZE_COEFFICIENT)))
+            pygame.draw.circle(self.__screen, self.SECOND_PLAYER,
+                               (offset_x + step_in_pixels * 6, offset_y + step_in_pixels * 8),
+                               piece_radius)
+            self.__screen.blit(white_count_surface, (offset_x + step_in_pixels * 7 - 35 * min(self.RESIZE_COEFFICIENT),
+                                                     offset_y + step_in_pixels * 8 - 15 * min(self.RESIZE_COEFFICIENT)))
+
+
+            pygame.display.update()
+
+            # Events handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                # Mouse clicking
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if quit_x <= mouse_pos[0] <= quit_x + quit_image.get_rect().width and \
+                            quit_y <= mouse_pos[1] <= quit_y + quit_image.get_rect().height:
+                        return self.QUIT
+                    if undo_x <= mouse_pos[0] <= undo_x + undo_image.get_rect().width and \
+                            undo_y <= mouse_pos[1] <= undo_y + undo_image.get_rect().height:
+                        return -1
+                    if next_x <= mouse_pos[0] <= next_x + next_image.get_rect().width and \
+                            next_y <= mouse_pos[1] <= next_y + next_image.get_rect().height:
+                        return 1
                 # Window resizing
                 elif event.type == pygame.VIDEORESIZE:
                     self.WINDOW_SIZE = pygame.display.get_surface().get_size()
