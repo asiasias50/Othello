@@ -937,13 +937,13 @@ class GUI:  # Class provides Graphical User Interface for the game
     def __game_cycle(self, game, timer, ai_status, player_is_first, ai_difficulty, loading="NULL"):  # Main game cycle
         if loading == "NULL":
             timers = [timer, timer]
-            character_relation = {game.characters()[0]: "Player 1", game.characters()[1]: "Player 2", "Draw": "Draw"}
             no_moves_flag = False
             ai_flip_flag = not player_is_first
         else:
             timers, no_moves_flag, ai_flip_flag, ai_status, ai_difficulty = loading[2]
             game = GameMode()
             game.load(loading[1])
+        character_relation = {game.characters()[0]: "Player 1", game.characters()[1]: "Player 2", "Draw": "Draw"}
         while True:
             possible_moves = game.possible_player_moves()
             if len(possible_moves) == 0:
@@ -1594,8 +1594,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                         if center <= mouse_pos[0] <= center + button_width and \
                                 initial_y_pos + step * index <= mouse_pos[1] <= \
                                 initial_y_pos + step * index + self.BUTTON_HEIGHT:
-                            if self.__username_2 == records[index][1] or records[index][1] == "AI":
-                                pass
+                            pass
 
                     for index in range(0, len(labels)):
                         button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
@@ -1697,8 +1696,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                         if center <= mouse_pos[0] <= center + button_width and \
                                 initial_y_pos + step * index <= mouse_pos[1] <= \
                                 initial_y_pos + step * index + self.BUTTON_HEIGHT:
-                            if self.__username_2 == records[index][1] or records[index][1] == "AI":
-                                pass
+                            self.__archive(username=records[index][0])
 
                     for index in range(0, len(labels)):
                         button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)

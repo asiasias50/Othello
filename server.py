@@ -140,7 +140,7 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
             player1_id = self.__cursor.fetchall()[0][0]
             self.__cursor.execute(f'SELECT player2_id FROM games_played WHERE game_id = "{game_id}"')
             player2_id = self.__cursor.fetchall()[0][0]
-            if int(finished) > 0 and player2 != 0:
+            if int(finished) > 0 and player2 != "NULL":
                 if int(finished) == 1:
                     self.__cursor.execute(f'UPDATE user_information '
                                           f'SET wins = wins + 1, total = total + 1, rating = wins / total'
@@ -203,7 +203,8 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
                                   f'game_information.finished, games_played.game_id '
                                   f'FROM games_played INNER JOIN game_information ON'
                                   f' games_played.game_id = game_information.game_id '
-                                  f'WHERE game_information.finished != "{0}"'
+                                  f'WHERE game_information.finished != "{0}" '
+                                  f'AND games_played.player2_id != "{0}"'
                                   f'ORDER BY games_played.game_id DESC')
         else:
             self.__cursor.execute(f'SELECT player_id FROM user_information WHERE username = "{username}"')
@@ -212,7 +213,8 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
                                   f'game_information.finished, games_played.game_id '
                                   f'FROM games_played INNER JOIN game_information ON'
                                   f' games_played.game_id = game_information.game_id '
-                                  f'WHERE game_information.finished != "{0}"'
+                                  f'WHERE game_information.finished != "{0}" '
+                                  f'AND games_played.player2_id != "{0}"'
                                   f'AND (games_played.player1_id = "{username}" OR'
                                   f' games_played.player2_id = "{username}")'
                                   f'ORDER BY games_played.game_id DESC')
