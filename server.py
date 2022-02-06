@@ -16,6 +16,7 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
     SEND_COLOURS = "sc"
     UPDATE_COLOURS = "uc"
     ARCHIVE = "ar"
+    RATING = "ra"
 
     def __init__(self):
         self.__procedure_list = {self.CREATE_ACCOUNT: self.__create_account, self.SIGN_IN: self.__sign_in,
@@ -23,7 +24,8 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
                                  self.GAME_LIST: self.__game_list,
                                  self.SEND_COLOURS: self.__send_colours,
                                  self.UPDATE_COLOURS: self.__update_colours,
-                                 self.ARCHIVE: self.__archive}
+                                 self.ARCHIVE: self.__archive,
+                                 self.RATING: self.__rating}
         # Establishing connection with MySQL database
         # Group A skill, Server-side extension
         self.__database = self.__connect_to_database()
@@ -108,10 +110,58 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
                                   f' VALUES ("{int(finished)}", "{game_sequence_str}", "{meta_data_str}")')
             self.__cursor.execute(f'INSERT INTO games_played (player1_id, player2_id, game_name)'
                                   f' VALUES ("{player1_id}", {player2_id}, "{game_name}")')
+            if int(finished) > 0 and player2 != "NULL":
+                if int(finished) == 1:
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET wins = wins + 1, total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = "{player1_id}"')
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = {player2_id}')
+                elif int(finished) == 2:
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = "{player1_id}"')
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET wins = wins + 1, total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = {player2_id}')
+                else:
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET wins = wins + 1, total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = "{player1_id}"')
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET wins = wins + 1, total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = {player2_id}')
         else:
             self.__cursor.execute(f'UPDATE game_information SET finished = "{int(finished)}",'
                                   f' game_sequence = "{game_sequence_str}", meta_data = "{meta_data_str}"'
                                   f' WHERE game_id = "{game_id}"')
+            self.__cursor.execute(f'SELECT player1_id FROM games_played WHERE game_id = "{game_id}"')
+            player1_id = self.__cursor.fetchall()[0][0]
+            self.__cursor.execute(f'SELECT player2_id FROM games_played WHERE game_id = "{game_id}"')
+            player2_id = self.__cursor.fetchall()[0][0]
+            if int(finished) > 0 and player2 != 0:
+                if int(finished) == 1:
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET wins = wins + 1, total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = "{player1_id}"')
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = "{player2_id}"')
+                elif int(finished) == 2:
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = "{player1_id}"')
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET wins = wins + 1, total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = "{player2_id}"')
+                else:
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET wins = wins + 1, total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = "{player1_id}"')
+                    self.__cursor.execute(f'UPDATE user_information '
+                                          f'SET wins = wins + 1, total = total + 1, rating = wins / total'
+                                          f' WHERE player_id = "{player2_id}"')
         self.__database.commit()
         client.send(bytes(dumps(True), self.ENCODING))
 
@@ -182,6 +232,12 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
             result_per_record.append(record[4])
             result.append(result_per_record)
         client.send(bytes(dumps(result), self.ENCODING))
+
+    def __rating(self, arguments, client):
+        set_of_five_records = arguments
+        self.__cursor.execute(f'SELECT username, wins, total, rating FROM user_information ORDER BY rating DESC')
+        player_info = self.__cursor.fetchall()[0 + set_of_five_records:5 + set_of_five_records]
+        client.send(bytes(dumps(player_info), self.ENCODING))
 
 
 if __name__ == '__main__':
