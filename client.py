@@ -16,6 +16,8 @@ class Client:  # Class formats and sends requests to the server, receives and de
     UPDATE_COLOURS = "uc"
     ARCHIVE = "ar"
     RATING = "ra"
+    CREATE_PUZZLE = "cp"
+    RETRIEVE_PUZZLES = "rp"
 
     def __init__(self):  # Initialisation of connection with the server
         self.__client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,7 +35,7 @@ class Client:  # Class formats and sends requests to the server, receives and de
     def sign_in(self, username, password):  # Verifying provided user details for sign in
         self.__client.send(bytes(self.SIGN_IN +
                                  dumps((username, str(int.from_bytes(sha3_256(password.encode(self.ENCODING)).digest(),
-                                                                     "little")))), self.ENCODING))  # Group A Skill, Hashing
+                                                                "little")))), self.ENCODING))  # Group A Skill, Hashing
         return loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
 
     def send_colours(self, username):
@@ -75,6 +77,18 @@ class Client:  # Class formats and sends requests to the server, receives and de
 
     def rating(self, set_of_five_records):
         self.__client.send(bytes(self.RATING + dumps(set_of_five_records * 5), self.ENCODING))
+        return loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
+
+    def create_puzzle(self, puzzle_sequence, puzzle_name, puzzle_creator):
+        puzzle_sequence_str = ""
+        for move in puzzle_sequence:
+            puzzle_sequence_str += str(move)
+        self.__client.send(bytes(self.CREATE_PUZZLE + dumps((puzzle_sequence_str, puzzle_name,
+                                                             puzzle_creator)), self.ENCODING))
+        return loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
+
+    def retrieve_puzzles(self, set_of_five_records):
+        self.__client.send(bytes(self.RETRIEVE_PUZZLES + dumps(set_of_five_records * 5), self.ENCODING))
         return loads(self.__client.recv(self.PACKET_SIZE).decode(self.ENCODING))
 
 

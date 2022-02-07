@@ -17,6 +17,8 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
     UPDATE_COLOURS = "uc"
     ARCHIVE = "ar"
     RATING = "ra"
+    CREATE_PUZZLE = "cp"
+    RETRIEVE_PUZZLES = "rp"
 
     def __init__(self):
         self.__procedure_list = {self.CREATE_ACCOUNT: self.__create_account, self.SIGN_IN: self.__sign_in,
@@ -25,7 +27,9 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
                                  self.SEND_COLOURS: self.__send_colours,
                                  self.UPDATE_COLOURS: self.__update_colours,
                                  self.ARCHIVE: self.__archive,
-                                 self.RATING: self.__rating}
+                                 self.RATING: self.__rating,
+                                 self.CREATE_PUZZLE: self.__create_puzzle,
+                                 self.RETRIEVE_PUZZLES: self.__retrieve_puzzles}
         # Establishing connection with MySQL database
         # Group A skill, Server-side extension
         self.__database = self.__connect_to_database()
@@ -240,6 +244,19 @@ class Server:  # Class acts as a stand alone application, retrieving requests fr
         self.__cursor.execute(f'SELECT username, wins, total, rating FROM user_information ORDER BY rating DESC')
         player_info = self.__cursor.fetchall()[0 + set_of_five_records:5 + set_of_five_records]
         client.send(bytes(dumps(player_info), self.ENCODING))
+
+    def __create_puzzle(self, arguments, client):
+        puzzle_sequence, puzzle_name, puzzle_creator = arguments
+        self.__cursor.execute(f'INSERT INTO puzzle_information (puzzle_sequence, puzzle_name, creator) '
+                              f'VALUES ("{puzzle_sequence}", "{puzzle_name}", "{puzzle_creator}")')
+        self.__database.commit()
+        client.send(bytes(dumps(True), self.ENCODING))
+
+    def __retrieve_puzzles(self, arguments, client):
+        set_of_five_records = arguments
+        self.__cursor.execute(f'SELECT puzzle_name, creator, puzzle_sequence FROM puzzle_information')
+        result = self.__cursor.fetchall()[0 + set_of_five_records:5 + set_of_five_records]
+        client.send(bytes(dumps(result), self.ENCODING))
 
 
 if __name__ == '__main__':

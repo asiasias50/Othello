@@ -1,9 +1,8 @@
 from pickle import dump, load
-from Game import GameMode
+from Game import GameMode, PuzzleMode, CreatorMode
 from client import Client
 import pygame
 from time import time
-from cProfile import run
 
 
 class UI:  # Class asks user to choose preferred UI and initialises it
@@ -177,6 +176,7 @@ class GUI:  # Class provides Graphical User Interface for the game
     SECOND_PLAYER_PALE = (180, 180, 180)
 
     QUIT = "Q"
+    SEE_SOLUTION = "S"
     pygame.font.init()
     OPEN_SANS = "Open Sans"
     SERVER_UNAVAILABLE = "Server unavailable"
@@ -201,7 +201,7 @@ class GUI:  # Class provides Graphical User Interface for the game
             pass
 
         # Labels
-        labels = ["PLAY", "SIGN IN", "REGISTER", "ARCHIVE", "RATING", "SETTINGS"]
+        labels = ["Play", "Sign In", "Register", "Archive", "Rating", "Settings"]
 
 
         # Game Loop
@@ -444,7 +444,7 @@ class GUI:  # Class provides Graphical User Interface for the game
 
             # Update cycle
             self.__screen.blit(self.LOGO_SURFACE, ((self.WINDOW_SIZE[0] - self.LOGO_SURFACE.get_rect().width) // 2, 0))
-            labels = ["PvP", "PvAI", "Load", "Tutorial", "Back"]
+            labels = ["PvP", "PvAI", "Load", "Tutorial", "Puzzles", "Back"]
             for index in range(0, len(labels)):
                 if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and \
                         initial_y_pos + index * step <= mouse_pos[1] <= initial_y_pos + index * step + self.BUTTON_HEIGHT:
@@ -463,7 +463,7 @@ class GUI:  # Class provides Graphical User Interface for the game
 
             # Events handling
             event_functions = [self.__two_player_game, self.__one_player_game,
-                               self.__load_database_game, self.__tutorial]
+                               self.__load_database_game, self.__tutorial, self.__puzzle_menu]
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -873,7 +873,7 @@ class GUI:  # Class provides Graphical User Interface for the game
             pygame.display.update()
 
     def __create_game_name(self):
-        create_name_surface = self.BUTTON_FONT.render("Create game name", False, self.TEXT_COLOUR)
+        create_name_surface = self.BUTTON_FONT.render("Create name", False, self.TEXT_COLOUR)
         game_name = ""
 
         while True:
@@ -989,6 +989,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                     break
                 else:
                     no_moves_flag = True
+                    self.__show_message(f"{character_relation[game.get_current_player()]} has no moves", False)
                     game.play(None)
             else:
                 no_moves_flag = False
@@ -1607,7 +1608,6 @@ class GUI:  # Class provides Graphical User Interface for the game
                                 game = client.retrieve_game(records[index][-1])
                                 del client
                             except Exception:
-                                print("lol")
                                 self.__show_message(self.SERVER_UNAVAILABLE, True)
                             self.__watch_game(game[0])
 
@@ -1892,6 +1892,333 @@ class GUI:  # Class provides Graphical User Interface for the game
                 game.play(move)
         return None
 
+    def __puzzle_menu(self):
+        # Menu providing game mode options
+
+        # Update loop
+        while True:
+            center = (self.WINDOW_SIZE[0] - self.BUTTON_WIDTH) // 2
+            initial_y_pos = 110 + 50 * self.RESIZE_COEFFICIENT[1]
+            step = self.BUTTON_HEIGHT + self.BUTTON_HEIGHT * self.RESIZE_COEFFICIENT[1]
+
+            self.__screen.fill(self.BACKGROUND)
+            mouse_pos = pygame.mouse.get_pos()
+
+            # Update cycle
+            self.__screen.blit(self.LOGO_SURFACE, ((self.WINDOW_SIZE[0] - self.LOGO_SURFACE.get_rect().width) // 2, 0))
+            labels = ["Play", "Create", "Back"]
+            for index in range(0, len(labels)):
+                if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and \
+                        initial_y_pos + index * step <= mouse_pos[1]\
+                        <= initial_y_pos + index * step + self.BUTTON_HEIGHT:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER, (center, initial_y_pos + index * step,
+                                                                         self.BUTTON_WIDTH, self.BUTTON_HEIGHT))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS, (center, initial_y_pos + index * step,
+                                                                   self.BUTTON_WIDTH, self.BUTTON_HEIGHT))
+                button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
+                self.__screen.blit(button_surface, ((self.WINDOW_SIZE[0] - button_surface.get_rect().width) // 2,
+                                                    initial_y_pos + index * step))
+
+            self.__show_usernames()
+
+            pygame.display.update()
+
+            # Events handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                # Mouse clicking
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    for index in range(0, len(labels)):
+                        if center <= mouse_pos[0] <= center + self.BUTTON_WIDTH and initial_y_pos + index * step <= \
+                                mouse_pos[1] <= initial_y_pos + index * step + self.BUTTON_HEIGHT:
+                            if index == len(labels) - 1:
+                                return None
+                            else:
+                                if index == 0:
+                                    self.__puzzle_archive()
+                                else:
+                                    self.__creator_cycle()
+                # Window resizing
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
+                                               self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
+
+    def __puzzle_archive(self, set_of_records=0):
+        if self.__username_1 is not None:
+            try:
+                client = Client()
+                records = client.retrieve_puzzles(set_of_records)
+                del client
+            except Exception:
+                self.__show_message(self.SERVER_UNAVAILABLE, True)
+                return None
+        else:
+            self.__show_message("Log in or Register", True)
+            return None
+
+        # Update loop
+        columns = ["Puzzle", "Creator"]
+        labels = ["BACK", "MENU", "NEXT"]
+
+        while True:
+            initial_y_pos = 100 * self.RESIZE_COEFFICIENT[1]
+            step = self.BUTTON_HEIGHT + self.BUTTON_HEIGHT * self.RESIZE_COEFFICIENT[1]
+            button_width = self.WINDOW_SIZE[0] - 50
+            center = (self.WINDOW_SIZE[0] - button_width) // 2
+
+            self.__screen.fill(self.BACKGROUND)
+            mouse_pos = pygame.mouse.get_pos()
+
+            # Update cycle
+            for index in range(0, len(columns)):
+                button_surface = self.BUTTON_FONT.render(columns[index], False, self.TEXT_COLOUR)
+                self.__screen.blit(button_surface, (center + index * (button_width // len(columns)),
+                                                    initial_y_pos // 2))
+
+            for index in range(0, len(records)):
+                if center <= mouse_pos[0] <= center + button_width and \
+                        initial_y_pos + step * index <= mouse_pos[1] <= \
+                        initial_y_pos + step * index + self.BUTTON_HEIGHT:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER,
+                                     (center, initial_y_pos + step * index, button_width, self.BUTTON_HEIGHT))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS,
+                                     (center, initial_y_pos + step * index, button_width, self.BUTTON_HEIGHT))
+                for record_pos in range(0, len(records[index]) - 1):
+                    message = str(records[index][record_pos])
+                    button_surface = self.BUTTON_FONT.render(message, False, self.TEXT_COLOUR)
+                    self.__screen.blit(button_surface, (center + record_pos * (button_width // len(columns)),
+                                                        initial_y_pos + step * index))
+            last_y_pos = initial_y_pos + step * 5
+
+            for index in range(0, len(labels)):
+                button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
+                extra_buttons_width = button_surface.get_rect().width
+                if center + (button_width // 3) * index <= mouse_pos[0] <= center + \
+                        (button_width // 3) * index + extra_buttons_width and \
+                        last_y_pos <= mouse_pos[1] <= last_y_pos + self.BUTTON_HEIGHT:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER,
+                                     (center + (button_width // 3) * index, last_y_pos,
+                                      extra_buttons_width, self.BUTTON_HEIGHT))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS,
+                                     (center + (button_width // 3) * index, last_y_pos,
+                                      extra_buttons_width, self.BUTTON_HEIGHT))
+                self.__screen.blit(button_surface, (center + (button_width // 3) * index, last_y_pos))
+
+            pygame.display.update()
+
+            # Events handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                # Mouse clicking
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    for index in range(0, len(records)):
+                        if center <= mouse_pos[0] <= center + button_width and \
+                                initial_y_pos + step * index <= mouse_pos[1] <= \
+                                initial_y_pos + step * index + self.BUTTON_HEIGHT:
+                            self.__puzzle_cycle(records[index][-1])
+
+                    for index in range(0, len(labels)):
+                        button_surface = self.BUTTON_FONT.render(labels[index], False, self.TEXT_COLOUR)
+                        extra_buttons_width = button_surface.get_rect().width
+                        if center + (button_width // 3) * index <= mouse_pos[0] <= center + \
+                                (button_width // 3) * index + extra_buttons_width and \
+                                last_y_pos <= mouse_pos[1] <= last_y_pos + self.BUTTON_HEIGHT:
+                            if index == 0:
+                                if set_of_records > 0:
+                                    self.__archive(set_of_records - 1)
+                                    return None
+                            elif index == 2:
+                                if len(records) > 0:
+                                    self.__archive(set_of_records + 1)
+                                    return None
+                            elif index == 1:
+                                return None
+                # Window resizing
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
+                                               self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
+
+    def __display_puzzle_board(self, board, characters, possible_moves, current_player, creator):
+        # Main loop
+        while True:
+            board_side = 600 * min(self.RESIZE_COEFFICIENT)
+            initial_pos_x = (self.WINDOW_SIZE[0] - board_side) // 2
+            initial_pos_y = (self.WINDOW_SIZE[1] - board_side) // 2
+            step_in_pixels = 75 * min(self.RESIZE_COEFFICIENT)
+            piece_radius = 34 * min(self.RESIZE_COEFFICIENT)
+            offset_x = initial_pos_x + (step_in_pixels / 2)
+            offset_y = initial_pos_y + (step_in_pixels / 2)
+
+            # Undo constants
+            undo_font = pygame.font.SysFont(self.OPEN_SANS, 50)
+            undo_image = undo_font.render("Undo", False, self.BLACK)
+            undo_x = offset_x + step_in_pixels * 0 - 23 * min(self.RESIZE_COEFFICIENT)
+            undo_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
+
+            # Quit constants
+            quit_image = undo_font.render("Quit", False, self.BLACK)
+            quit_x = offset_x + step_in_pixels * 7 - 23 * min(self.RESIZE_COEFFICIENT)
+            quit_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
+
+            # See Solution Button
+            see_text = self.BUTTON_FONT.render("See Solution", False, self.TEXT_COLOUR)
+            button_width = see_text.get_rect().width
+            see_x = (self.WINDOW_SIZE[0] - button_width) // 2
+            see_y = offset_y + step_in_pixels * 8 - 23 * min(self.RESIZE_COEFFICIENT)
+
+            self.__screen.fill(self.BACKGROUND)
+            mouse_pos = pygame.mouse.get_pos()
+
+            # Update cycle
+            pygame.draw.rect(self.__screen, self.BOARD, (initial_pos_x, initial_pos_y, board_side, board_side))
+            for index in range(0, 9):
+                pygame.draw.line(self.__screen, self.FIRST_PLAYER,
+                                 (initial_pos_x, initial_pos_y + step_in_pixels * index),
+                                 (initial_pos_x + board_side, initial_pos_y + step_in_pixels * index))
+                pygame.draw.line(self.__screen, self.FIRST_PLAYER,
+                                 (initial_pos_x + step_in_pixels * index, initial_pos_y),
+                                 (initial_pos_x + step_in_pixels * index, initial_pos_y + board_side))
+            for row in range(0, 8):
+                for col in range(0, 8):
+                    if board[row][col] == characters[0]:
+                        pygame.draw.circle(self.__screen, self.FIRST_PLAYER,
+                                           (offset_x + step_in_pixels * col, offset_y +
+                                            step_in_pixels * row), piece_radius)
+                    elif board[row][col] == characters[1]:
+                        pygame.draw.circle(self.__screen, self.SECOND_PLAYER,
+                                           (offset_x + step_in_pixels * col, offset_y +
+                                            step_in_pixels * row), piece_radius)
+            for move in possible_moves:
+                if (mouse_pos[0] - (offset_x + step_in_pixels * move[1])) ** 2 \
+                        + (mouse_pos[1] - (offset_y + step_in_pixels * move[0])) ** 2 <= piece_radius ** 2:
+                    if current_player == characters[0]:
+                        pygame.draw.circle(self.__screen, self.FIRST_PLAYER_PALE,
+                                           (offset_x + step_in_pixels * move[1],
+                                            offset_y + step_in_pixels * move[0]), piece_radius)
+                    else:
+                        pygame.draw.circle(self.__screen, self.SECOND_PLAYER_PALE, (offset_x + step_in_pixels * move[1],
+                                                                                    offset_y + step_in_pixels * move[
+                                                                                        0]),
+                                           piece_radius)
+                else:
+                    pygame.draw.circle(self.__screen, self.FIRST_PLAYER,
+                                       (offset_x + step_in_pixels * move[1], offset_y +
+                                        step_in_pixels * move[0]), piece_radius, 1)
+                    pygame.draw.circle(self.__screen, self.FIRST_PLAYER,
+                                       (offset_x + step_in_pixels * move[1], offset_y +
+                                        step_in_pixels * move[0]), piece_radius - 5, 1)
+
+            # Undo button
+            if creator:
+                try:
+                    undo_image = pygame.image.load("Undo.svg")
+                    undo_image = pygame.transform.scale(undo_image, (
+                        int(65 * min(self.RESIZE_COEFFICIENT)), int(65 * min(self.RESIZE_COEFFICIENT))))
+                except FileNotFoundError:
+                    pass
+                self.__screen.blit(undo_image, (undo_x, undo_y))
+
+            # Quit button
+            try:
+                quit_image = pygame.image.load("Quit.svg")
+                quit_image = pygame.transform.scale(quit_image, (
+                    int(50 * min(self.RESIZE_COEFFICIENT)), int(50 * min(self.RESIZE_COEFFICIENT))))
+            except FileNotFoundError:
+                pass
+            self.__screen.blit(quit_image, (quit_x, quit_y))
+
+            # See Solution Button
+            if creator:
+                if see_x <= mouse_pos[0] <= see_x + self.BUTTON_WIDTH and \
+                        see_y <= mouse_pos[1] <= see_y + self.BUTTON_HEIGHT:
+                    pygame.draw.rect(self.__screen, self.BUTTONS_HOVER,
+                                     (see_x, see_y, button_width, self.BUTTON_HEIGHT))
+                else:
+                    pygame.draw.rect(self.__screen, self.BUTTONS,
+                                     (see_x, see_y, button_width, self.BUTTON_HEIGHT))
+                self.__screen.blit(see_text, ((self.WINDOW_SIZE[0] - see_text.get_rect().width) // 2, see_y))
+
+            pygame.display.update()
+
+            # Events handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                # Mouse clicking
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if quit_x <= mouse_pos[0] <= quit_x + quit_image.get_rect().width and \
+                            quit_y <= mouse_pos[1] <= quit_y + quit_image.get_rect().height:
+                        return self.QUIT
+                    for move in possible_moves:
+                        if (mouse_pos[0] - (offset_x + step_in_pixels * move[1])) ** 2 \
+                                + (mouse_pos[1] - (offset_y + step_in_pixels * move[0])) ** 2 <= piece_radius ** 2:
+                            return possible_moves.index(move)
+                    if creator:
+                        if see_x <= mouse_pos[0] <= see_x + self.BUTTON_WIDTH and \
+                                see_y <= mouse_pos[1] <= see_y + self.BUTTON_HEIGHT:
+                            return self.SEE_SOLUTION
+                        if undo_x <= mouse_pos[0] <= undo_x + undo_image.get_rect().width and \
+                                undo_y <= mouse_pos[1] <= undo_y + undo_image.get_rect().height:
+                            return -1
+                # Window resizing
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WINDOW_SIZE = pygame.display.get_surface().get_size()
+                    self.RESIZE_COEFFICIENT = (self.WINDOW_SIZE[0] / self.DEFAULT_SIZE,
+                                               self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
+
+    def __puzzle_cycle(self, sequence):
+        puzzle = PuzzleMode(sequence)
+        response = self.__display_puzzle_board(puzzle.get_board(), puzzle.get_characters(),
+                                               puzzle.possible_moves(), puzzle.get_current_player(), False)
+        if response != self.QUIT:
+            puzzle.make_move(response)
+            self.__show_message(f"Your score is {puzzle.get_score(sequence[-1])}", False)
+            self.__show_message(f"Optimal move is", False)
+            self.__display_puzzle_board(puzzle.get_board(), puzzle.get_characters(),
+                                               [], puzzle.get_current_player(), False)
+        return None
+
+    def __creator_cycle(self):
+        if self.__username_1 is None:
+            self.__show_message("Log in or Register", True)
+            return None
+
+        creator = CreatorMode()
+        response = 0
+        while True:
+            response = self.__display_puzzle_board(creator.get_board(), creator.get_characters(),
+                                               creator.possible_moves(), creator.get_current_player(), True)
+            if response == self.QUIT:
+                if len(creator.possible_moves()) == 0:
+                    self.__show_message("Puzzle must have a move", False)
+                    continue
+                try:
+                    puzzle_name = self.__create_game_name()
+                    client = Client()
+                    client.create_puzzle(creator.see_solution(), puzzle_name, self.__username_1)
+                    del client
+                    self.__show_message("Puzzle saved", True)
+                except Exception:
+                    self.__show_message(self.SERVER_UNAVAILABLE, True)
+                break
+            elif response == self.SEE_SOLUTION:
+                creator.see_solution()
+            elif response == -1:
+                creator.undo_move()
+            else:
+                creator.make_move(response)
+        return None
+
 
 def main():
     UI()
@@ -1899,5 +2226,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    #g = GameMode()
-    #run("g.get_ai_move(g.possible_player_moves(), 6, float(\'inf\'

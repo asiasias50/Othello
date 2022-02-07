@@ -120,6 +120,82 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
                + self.__heuristic_mobility(game_state, minimizing_player)
 
 
+class PuzzleMode:
+    def __init__(self, sequence):
+        self.__Board = Board()
+        self.__Board.load(sequence[:-1])
+
+    def make_move(self, move):
+        self.__Board.make_a_move(move)
+
+    def possible_moves(self):
+        return self.__Board.get_possible_moves()
+
+    def get_board(self):
+        return self.__Board.get_board()
+
+    def get_characters(self):
+        return [self.__Board.BLACK, self.__Board.WHITE]
+
+    def get_current_player(self):
+        return self.__Board.get_current_player()
+
+    def get_score(self, last_move):
+        board = self.__Board.get_board()
+        player = self.__Board.opposite()
+        corners_captured = 0
+        for corner in [[0,0], [7,0], [0,7], [7,7]]:
+            if board[corner[0]][corner[1]] == player:
+                corners_captured += 10
+        current_number_of_moves = len(self.__Board.get_possible_moves())
+        self.__Board.undo_move()
+        previous_number_of_moves = len(self.__Board.get_possible_moves())
+        self.__Board.make_a_move(int(last_move))
+        return corners_captured + previous_number_of_moves - current_number_of_moves
+
+
+class CreatorMode:
+    def __init__(self):
+        self.__Board = Board()
+
+    def make_move(self, move):
+        self.__Board.make_a_move(move)
+
+    def undo_move(self):
+        self.__Board.undo_move()
+
+    def possible_moves(self):
+        return self.__Board.get_possible_moves()
+
+    def get_board(self):
+        return self.__Board.get_board()
+
+    def get_characters(self):
+        return [self.__Board.BLACK, self.__Board.WHITE]
+
+    def get_current_player(self):
+        return self.__Board.get_current_player()
+
+    def see_solution(self):
+        board = self.__Board.get_board()
+        player = self.__Board.get_current_player()
+        possible_moves = self.__Board.get_possible_moves()
+        previous_number_of_moves = len(possible_moves)
+        results = []
+        for move in range(0, len(possible_moves)):
+            board_copy = self.__Board.copy(move)
+            board_copy.make_a_move(0)
+            corners_captured = 0
+            for corner in [[0, 0], [7, 0], [0, 7], [7, 7]]:
+                if board[corner[0]][corner[1]] == player:
+                    corners_captured += 10
+            current_number_of_moves = len(board_copy.get_possible_moves())
+            results.append(corners_captured + previous_number_of_moves - current_number_of_moves)
+        best_move = results.index(max(results))
+        self.__Board.make_a_move(best_move)
+        return self.__Board.get_move_history()
+
+
 class Board:  # Class contains a representation of game board and performs all board manipulations
     ALTERNATIVE = "○●＿◎"
     WHITE = "W"
