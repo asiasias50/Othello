@@ -5,8 +5,11 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
     def __init__(self):  # Initialises a game board on which all further manipulations will take place
         self.__Board = Board()
 
+    ###########################
+    # One line functions act as a filter, providing users which use GameMode class with only relevant methods
+    ##########################
+
     def play(self, move):
-        # Further block of functions filters only relevant to game flow functions provided by Board class
         self.__Board.make_a_move(move)
 
     def possible_player_moves(self):
@@ -40,7 +43,9 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
         self.__Board.load(memory)
 
     def get_ai_move(self, possible_moves, depth, timer):
+        ###########################
         # Minimax Algorithm with alpha beta pruning is used to find an optimal move for given board
+        ##########################
         scores = []
         for move in range(0, len(possible_moves)):
             board = self.__Board.copy(move)
@@ -50,7 +55,11 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
         return scores.index(min(scores))  # Algorithm returns an index of best move to make
 
     def __alpha_beta(self, game_state, no_moves_flag, depth, minimising_player, alpha, beta, timer, AI_piece):
-        # Group A skill, Optimisation algorithm
+        ##########################
+        # Group A Skill
+        # ===========
+        # Optimisation Algorithm
+        ##########################
         start_time = time()
         new_flag = (len(game_state.get_possible_moves()) == 0)
         if depth == 0 or timer <= 1 or (new_flag and no_moves_flag):
@@ -59,30 +68,42 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
             possible_moves = game_state.get_possible_moves()
             if minimising_player:
                 result = float("inf")
-                for move in range(0, len(possible_moves)):  # Group A skill, Tree Traversal
-                    board = game_state.copy(move)  # Group A skill, Dynamic generation of OOP object
+                for move in range(0, len(possible_moves)):
+                    board = game_state.copy(move)
                     board.make_a_move(0)
                     result = min(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha,
                                                            beta, timer - (time() - start_time), AI_piece))
-                    # Group A skill, Recursive algorithm
+                    ##########################
+                    # Group A Skills
+                    # ===========
+                    # Recursive Algorithm, Dynamic generation of OOP object, Tree Traversal
+                    ##########################
                     if result <= alpha:
                         break
                     beta = min(beta, result)
                 return result
             else:
                 result = float("-inf")
-                for move in range(0, len(possible_moves)):  # Group A skill, Tree Traversal
-                    board = game_state.copy(move)  # Group A skill, Dynamic generation of OOP object
+                for move in range(0, len(possible_moves)):
+                    board = game_state.copy(move)
                     board.make_a_move(0)
                     result = max(result, self.__alpha_beta(board, new_flag, depth - 1, not minimising_player, alpha,
                                                            beta, timer - (time() - start_time), AI_piece))
-                    # Group A skill, Recursive algorithm
+                    ##########################
+                    # Group A Skills
+                    # ===========
+                    # Recursive Algorithm, Dynamic generation of OOP object, Tree Traversal
+                    ##########################
                     if result >= beta:
                         break
                     alpha = max(alpha, result)
                 return result
 
     def __heuristic_corners(self, game_state, minimizing_player):
+        ##########################
+        # Function evaluates the game state based on number of captured corners
+        # More corners the user has, higher the value of the heuristic
+        ##########################
         max_value = 0
         min_value = 0
         max_player = game_state.WHITE if game_state.BLACK == minimizing_player else game_state.BLACK
@@ -97,6 +118,11 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
         return (max_value - min_value) / (max_value + min_value)
 
     def __heuristic_mobility(self, game_state, minimizing_player):
+        ##########################
+        # Function evaluates the game state based on number of possible moves
+        # If player has more moves than the opponent, player has more choice
+        # and hence larger chances of optimal move and win
+        ##########################
         max_value = 0
         min_value = 0
         if game_state.get_current_player() == minimizing_player:
@@ -116,14 +142,22 @@ class GameMode:  # Class provides relevant interface for fluent game flow and Ar
         return (max_value - min_value) / (max_value + min_value)
 
     def __heuristic(self, game_state, minimizing_player):
+        ##########################
+        # Function combines 2 values of heuristic into 1, giving more relevance to corner heuristic
+        # as capturing corners allows for maximum gain in the end
+        ##########################
         return 2 * self.__heuristic_corners(game_state, minimizing_player)\
                + self.__heuristic_mobility(game_state, minimizing_player)
 
 
-class PuzzleMode:
+class PuzzleMode:  # Class provide an interface to solve puzzles
     def __init__(self, sequence):
         self.__Board = Board()
         self.__Board.load(sequence[:-1])
+
+    ###########################
+    # One line functions act as a filter, providing users which use GameMode class with only relevant methods
+    ##########################
 
     def make_move(self, move):
         self.__Board.make_a_move(move)
@@ -141,6 +175,9 @@ class PuzzleMode:
         return self.__Board.get_current_player()
 
     def get_score(self, last_move):
+        ###########################
+        # Function evaluates each move as the heuristic would and assigns a score based on that evaluation
+        ##########################
         board = self.__Board.get_board()
         player = self.__Board.opposite()
         corners_captured = 0
@@ -214,6 +251,11 @@ class Board:  # Class contains a representation of game board and performs all b
         self.__grid[4][3] = self.BLACK
         # Initialisation of the boundary to optimise time to search for possible moves
         self.__boundary = {}
+        ##########################
+        # Group C Skills
+        # ===========
+        # One-dimensional array
+        ##########################
         self.__boundary_story = []
         self.__initialise_boundary()
         self.__current_player = self.BLACK
@@ -242,9 +284,15 @@ class Board:  # Class contains a representation of game board and performs all b
             for col in range(2, 6):
                 if (row, col) not in [(3, 3), (3, 4), (4, 3), (4, 4)]:
                     self.__boundary[(row, col)] = 0
+        ##########################
+        # Group B Skills
+        # ===========
+        # Dictionaries
+        ##########################
 
     def get_possible_moves(self):
         # Function checks all available places from the boundary returning a set of moves that can be performed
+        # and returns them
         self.__moves_meta_data = []
         self.__possible_moves = []
         for row, col in self.__boundary:
@@ -289,7 +337,12 @@ class Board:  # Class contains a representation of game board and performs all b
                     self.__grid[row + effect[0] * scale][col + effect[1] * scale] = self.__current_player
 
             # Saving into history
-            self.__moves_story.append([row, col, self.__moves_meta_data[move]])  # Group A skill, Stack operation, push
+            self.__moves_story.append([row, col, self.__moves_meta_data[move]])
+            ##########################
+            # Group A Skills
+            # ===========
+            # Stack operation, push
+            ##########################
             self.__moves_story_indexes.append(move)
 
             # Boundary update
@@ -307,7 +360,12 @@ class Board:  # Class contains a representation of game board and performs all b
         # Function deletes the last move and performs corresponding
         # corrections to the board to restore it previous state
         if len(self.__moves_story) > 0:
-            move = self.__moves_story.pop()  # Group A skill, Stack operation, pop
+            move = self.__moves_story.pop()
+            ##########################
+            # Group A Skills
+            # ===========
+            # Stack operation, pop
+            ##########################
             self.__moves_story_indexes.pop()
             for effect in move[2][::-1]:
                 for scale in range(1, effect[2]):
@@ -319,7 +377,8 @@ class Board:  # Class contains a representation of game board and performs all b
     def get_board(self):  # Returns board to be shown to user via UI
         return self.__grid
 
-    def get_move_history(self):
+    def get_move_history(self): # Returning the sequence of
+        # moves mage for storage in the database
         return self.__moves_story_indexes
 
     def win_status(self):  # Checks which player won or if its a draw
@@ -349,7 +408,8 @@ class Board:  # Class contains a representation of game board and performs all b
                     while_count += 1
         return [black_count, while_count]
 
-    def load(self, memory):
+    def load(self, memory):  # Performs a sequence of moves to
+        # bring the game to saved state for continuation
         moves = memory
         while len(moves) > 0:
             move = int(moves[0])

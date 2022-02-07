@@ -26,6 +26,11 @@ class Terminal:  # Class implements terminal version of the UI
         self.__run()
 
     def __run(self):  # Main game loop
+        ##########################
+        # Function performs the main control of the game flow
+        # providing user will all required information, e.g. game boards,
+        # and allows user to input required values
+        ##########################
         quit_game = False
         while not quit_game:  # Game is run unless user wants to quit
             game_decision = input("Enter q to quit, l to load most recent game, or any other character to play. ")
@@ -83,17 +88,21 @@ class Terminal:  # Class implements terminal version of the UI
                         if ai_status:
                             ai_flip_flag = not ai_flip_flag
 
-    def __get_ai_status(self):  # Asks user to decide how many player will play
+    def __get_ai_status(self):
+        ##########################
+        # Function asks a user to input a numbers to indicate in which, one or two, player mode will the user play,
+        # in addition to indication of who goes first, computer or player. Also, functions verifies the input.
+        ##########################
         number_of_players = -1
         while number_of_players not in [1, 2]:
-            try:
+            try:  # Defensive programing
                 number_of_players = int(input("Enter number of players(1 or 2). "))
             except ValueError:
                 print("Value must be an integer, 1 or 2.")
         if number_of_players == 1:
             first_turn = 0
             while first_turn not in [1, 2]:
-                try:
+                try:  # Defensive programing
                     first_turn = int(input("Enter 1 if you want to go first, enter 2 if you want AI to go first. "))
                 except ValueError:
                     print("Value must be an integer, 1 or 2.")
@@ -105,7 +114,7 @@ class Terminal:  # Class implements terminal version of the UI
         move = [-1, -1]
         move_set = False
         while not move_set:
-            try:
+            try:  # Defensive programing
                 values = input(f"{self.__players[self.__Game.get_current_player()]}, please enter row and column of "
                                f"your move(eg. 4 5), or q to quit. ")
                 if values == "q":
@@ -125,16 +134,30 @@ class Terminal:  # Class implements terminal version of the UI
     def __store_game_state(self):  # Stores game state to a text file
         with open("Last_Game_Save.txt", "wb") as file:
             dump(self.__Game, file)
+            ##########################
+            # Group B Skills
+            # ===========
+            # Files, writing
+            ##########################
 
     def __load_game_state(self):  # Loads game from a text file
-        try:
+        try:  # Defensive programing
             file = open("Last_Game_Save.txt", "rb")
             self.__Game = load(file)
             file.close()
         except IOError:
             self.__Game = None
+        ##########################
+        # Group B Skills
+        # ===========
+        # Files, reading
+        ##########################
 
-    def __print_state(self, possible_moves, piece_count):  # Prints out a board with pieces into a terminal
+    def __print_state(self, possible_moves, piece_count):
+        ##########################
+        # Function prints the board into the terminal,
+        # along side with number of pieces each player has
+        ##########################
         board = self.__Game.get_board()
         print()
         print("  ", end='')
@@ -155,6 +178,7 @@ class Terminal:  # Class implements terminal version of the UI
 
 
 class GUI:  # Class provides Graphical User Interface for the game
+
     # Size and Colour constants
     WINDOW_SIZE = (800, 800)
     DEFAULT_SIZE = 800
@@ -175,6 +199,7 @@ class GUI:  # Class provides Graphical User Interface for the game
     SECOND_PLAYER = (255, 255, 255)
     SECOND_PLAYER_PALE = (180, 180, 180)
 
+    # Text constants
     QUIT = "Q"
     SEE_SOLUTION = "S"
     pygame.font.init()
@@ -191,7 +216,12 @@ class GUI:  # Class provides Graphical User Interface for the game
         self.__username_2 = None
         self.__run_gui()
 
-    def __run_gui(self):  # Main menu
+    def __run_gui(self):
+        ##########################
+        # Function provides a main menu from which the user can navigate
+        # to any part of the program, such as Play, Log In, Register, etc.
+        ##########################
+
         # Captions
         pygame.display.set_caption("Othello")
         try:
@@ -202,9 +232,13 @@ class GUI:  # Class provides Graphical User Interface for the game
 
         # Labels
         labels = ["Play", "Sign In", "Register", "Archive", "Rating", "Settings"]
+        ##########################
+        # Group C Skills
+        # ===========
+        # One-dimensional array
+        ##########################
 
-
-        # Game Loop
+        # Main Loop
         while True:
             # Update cycle
             mouse_pos = pygame.mouse.get_pos()
@@ -212,6 +246,7 @@ class GUI:  # Class provides Graphical User Interface for the game
             initial_y_pos = 110 + 50 * self.RESIZE_COEFFICIENT[1]
             step = self.BUTTON_HEIGHT + self.BUTTON_HEIGHT * self.RESIZE_COEFFICIENT[1]
             self.__screen.fill(self.BACKGROUND)
+
             # Logo and button drawing, including hovering
             self.__screen.blit(self.LOGO_SURFACE, ((self.WINDOW_SIZE[0] - self.LOGO_SURFACE.get_rect().width) // 2, 0))
             for index in range(0, len(labels)):
@@ -259,7 +294,12 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __sign_in_menu(self, register):
-        try:
+        ##########################
+        # Function allows user to enter their account details and log in,
+        # any relevant messages, such as "Incorrect password", etc. are presented by the menu
+        ##########################
+
+        try:  # Defensive programing
             client = Client()
         except Exception:
             self.__show_message("Server Unavailable", True)
@@ -286,6 +326,7 @@ class GUI:  # Class provides Graphical User Interface for the game
             player_select_pos = [[center - self.BUTTON_WIDTH * 0.55, initial_y_pos + 2.2 * step],
                                  [center + self.BUTTON_WIDTH * 0.55, initial_y_pos + 2.2 * step]]
             self.__screen.fill(self.BACKGROUND)
+
             # Logo and button drawing, including hovering
             self.__screen.blit(self.LOGO_SURFACE, ((self.WINDOW_SIZE[0] - self.LOGO_SURFACE.get_rect().width) // 2, 0))
             for index in range(0, len(labels)):
@@ -377,7 +418,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                         return None
                     if confirm_pos[0] <= mouse_pos[0] <= confirm_pos[0] + self.BUTTON_WIDTH and \
                             confirm_pos[1] <= mouse_pos[1] <= confirm_pos[1] + self.BUTTON_HEIGHT:
-                        try:
+                        try:  # Deffensive programming
                             client = Client()
                         except Exception:
                             self.__show_message("Server Unavailable", True)
@@ -431,7 +472,10 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __run_play_menu(self):
-        # Menu providing game mode options
+        ##########################
+        # Function provides a game menu, allowing the user
+        # to choose in which mode to play, or to solve or create puzzles
+        ##########################
 
         # Update loop
         while True:
@@ -484,6 +528,10 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __settings(self):
+        ##########################
+        # Function provides a menu to choose a piece or a board, the colour of which will be changed.
+        ##########################
+
         labels = ["PLAYER 1 COLOUR", "PLAYER 2 COLOUR", "BOARD COLOUR", "BACK"]
 
         # Update loop
@@ -528,7 +576,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                                 mouse_pos[1] <= initial_y_pos + index * step + self.BUTTON_HEIGHT:
                             if index == len(labels) - 1:
                                 if self.__username_1 is not None:
-                                    try:
+                                    try:  # Defensive programming
                                         client = Client()
                                         client.update_colours(self.__username_1,
                                                               (self.FIRST_PLAYER, self.SECOND_PLAYER, self.BOARD))
@@ -544,6 +592,12 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __colour_picker(self, player_or_board):
+        ##########################
+        # Function allows user to enter 3 values for Red, Green and Blue,
+        # to modify the color of previously chosen piece or board. It also displace
+        # a piece dynamically to show the user exactly what colour user applying.
+        ##########################
+
         labels = ["RED", "GREEN", "BLUE", "BACK"]
         input_position = 0
         if player_or_board == 0:
@@ -629,7 +683,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                                 input_position = index
                 # Key input
                 elif event.type == pygame.KEYDOWN:
-                    try:
+                    try:  # Defensive programming
                         if event.key == pygame.K_BACKSPACE:
                             new_colour[input_position] = ""
                         else:
@@ -644,7 +698,12 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __display_game_board(self, board, possible_moves, current_player, characters, counters, timers,
-                             win_status, ai_status, ai_turn):  # Displaying game board and retrieving user input
+                             win_status, ai_status, ai_turn):
+        ##########################
+        # Function displays a game board, an 8x8 grid and pieces along with possible moves.
+        # Function returns a move chosen by the player. It also displays timers and
+        # counters which are updated dynamically.
+        ##########################
 
         # Main loop
         while True:
@@ -827,7 +886,10 @@ class GUI:  # Class provides Graphical User Interface for the game
                 return None
 
     def __show_usernames(self):
-        # Username display
+        ##########################
+        # Function dynamically displays player usernames in left bottom corner of the board.
+        ##########################
+
         usernames = []
         for username in [self.__username_1, self.__username_2]:
             if username is None:
@@ -841,7 +903,12 @@ class GUI:  # Class provides Graphical User Interface for the game
             self.__screen.blit(username_surface, (0, self.WINDOW_SIZE[1] -
                                                   username_surface.get_rect().height * (len(usernames) - index)))
 
-    def __show_message(self, text, fill):  # Shows a pop up message on the screen
+    def __show_message(self, text, fill):
+        ##########################
+        # Function displays a message on the screen.
+        # It can either fill the background or leave it unchanged from the previous action.
+        ##########################
+
         message_colour = (194, 0, 0)
         box_colour = (0, 0, 0)
         message_font = pygame.font.SysFont(self.OPEN_SANS, 80)
@@ -873,6 +940,11 @@ class GUI:  # Class provides Graphical User Interface for the game
             pygame.display.update()
 
     def __create_game_name(self):
+        ##########################
+        # Function allows user to create a game or puzzle name and input it.
+        # Created name will be used later on to save the puzzle or game.
+        ##########################
+
         create_name_surface = self.BUTTON_FONT.render("Create name", False, self.TEXT_COLOUR)
         game_name = ""
 
@@ -943,6 +1015,12 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __game_cycle(self, game, timer, ai_status, player_is_first, ai_difficulty, loading="NULL"):  # Main game cycle
+        ##########################
+        # Function controls the flow of normal game, including decisions on whens to stop the game,
+        # updating the game board, requesting input, retrieving AI move, etc. Game can be both created
+        # and given to the function or loaded from the database.
+        ##########################
+
         if loading == "NULL":
             timers = [timer, timer]
             no_moves_flag = False
@@ -1066,6 +1144,11 @@ class GUI:  # Class provides Graphical User Interface for the game
                     ai_flip_flag = not ai_flip_flag
 
     def __two_player_game(self):  # 2 player game menu
+        ##########################
+        # Function displays a menu, allowing user to enable the
+        # timer and specify the time each player has total to make the moves.
+        ##########################
+
         # Colours and Sizes
         timer = 300
         timer_flag = False
@@ -1207,6 +1290,11 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __one_player_game(self):
+        ##########################
+        # Function displays a menu which allows user to specify the difficulty of the AI player
+        # wants to play against, choose who starts player or a computer and enable timer if needed.
+        ##########################
+
         # Sizes and Colours
         timer = 300
         timer_flag = False
@@ -1419,8 +1507,15 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __load_database_game(self, set_of_records=0):
+        ##########################
+        # Function displays a menu of unfinished games player started,
+        # allowing user to chose and click on the game player wants to continue.
+        # Each page contains 5 records at most, navigation through pages are done via the buttons
+        # Back and Next
+        ##########################
+
         if self.__username_1 is not None:
-            try:
+            try:  # Defensive programming
                 client = Client()
                 records = client.game_list(self.__username_1, set_of_records, False)
                 del client
@@ -1523,8 +1618,13 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __archive(self, set_of_records=0, username=None):
+        ##########################
+        # Function displays a menu of finished games, along with the information whi played these games and who won.
+        # By clicking on the particular game, user can review it.
+        ##########################
+
         if self.__username_1 is not None:
-            try:
+            try:  # Defensive programming
                 client = Client()
                 records = client.archive(set_of_records, username)
                 del client
@@ -1634,8 +1734,14 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __rating(self, set_of_records=0):
+        ##########################
+        # Function displays a menu of all registered players along with their statistic of win,
+        # loses and total number of played games. The win rate (rating) is also displayed.
+        # Player on any record an it will lead to archive page with games only played by chosen user.
+        ##########################
+
         if self.__username_1 is not None:
-            try:
+            try:  # Defensive programming
                 client = Client()
                 records = client.rating(set_of_records)
                 del client
@@ -1736,6 +1842,11 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __watch_game(self, game_sequence):
+        ##########################
+        # Function controls the flow of game review, by receiving input from the user
+        # to either progress to the next move, uno the last move or stop review by quitting.
+        ##########################
+
         move = 0
         game = GameMode()
 
@@ -1754,6 +1865,11 @@ class GUI:  # Class provides Graphical User Interface for the game
         return None
 
     def __watch_board_display(self, board, counters, characters):
+        ##########################
+        # Function displays a game board, an 8x8 grid and pieces. It allows only to use buttons
+        # Undo, Next and Quit, because it is a review of already completed game, and hence it cannot be modified.
+        ##########################
+
         # Main loop
         while True:
             board_side = 600 * min(self.RESIZE_COEFFICIENT)
@@ -1872,6 +1988,11 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __tutorial(self):
+        ##########################
+        # Function provides a simple way for player to learn the game, telling user what to do,
+        # and providing some tips to play the game successfully.
+        ##########################
+
         game = GameMode()
         tips = ["Place a piece in available space",
                 "Now its opponents go",
@@ -1893,7 +2014,10 @@ class GUI:  # Class provides Graphical User Interface for the game
         return None
 
     def __puzzle_menu(self):
-        # Menu providing game mode options
+        ##########################
+        # Function displays a menu, allowing user to either select puzzles and start
+        # to play a chosen puzzle or select create to create a new puzzle.
+        ##########################
 
         # Update loop
         while True:
@@ -1948,8 +2072,13 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __puzzle_archive(self, set_of_records=0):
+        ##########################
+        # Function displays a menu similar to archive, presenting a records
+        # of puzzles from the database, user can chose and click on puzzle presented to start playing it
+        ##########################
+
         if self.__username_1 is not None:
-            try:
+            try:  # Defensive programming
                 client = Client()
                 records = client.retrieve_puzzles(set_of_records)
                 del client
@@ -2048,6 +2177,13 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __display_puzzle_board(self, board, characters, possible_moves, current_player, creator):
+        ##########################
+        # Function displays a game board, an 8x8 grid and pieces.
+        # It allows user to make a move if player solves a puzzle,
+        # and as many moves as needed if user creates the puzzle,
+        # with additional access to undo button and See Solution button.
+        ##########################
+
         # Main loop
         while True:
             board_side = 600 * min(self.RESIZE_COEFFICIENT)
@@ -2177,6 +2313,11 @@ class GUI:  # Class provides Graphical User Interface for the game
                                                self.WINDOW_SIZE[1] / self.DEFAULT_SIZE)
 
     def __puzzle_cycle(self, sequence):
+        ##########################
+        # Function controls the flow of the puzzle, allowing user to make one move,
+        # presenting them with calculated score and giving them the optimal solution to the puzzle
+        ##########################
+
         puzzle = PuzzleMode(sequence)
         response = self.__display_puzzle_board(puzzle.get_board(), puzzle.get_characters(),
                                                puzzle.possible_moves(), puzzle.get_current_player(), False)
@@ -2189,6 +2330,13 @@ class GUI:  # Class provides Graphical User Interface for the game
         return None
 
     def __creator_cycle(self):
+        ##########################
+        # Function controls the flow of puzzle creation,
+        # allowing user to place as many pieces as needed,
+        # undo moves and see optimal solution given by the
+        # computer by pressing See Solution
+        ##########################
+
         if self.__username_1 is None:
             self.__show_message("Log in or Register", True)
             return None
@@ -2202,7 +2350,7 @@ class GUI:  # Class provides Graphical User Interface for the game
                 if len(creator.possible_moves()) == 0:
                     self.__show_message("Puzzle must have a move", False)
                     continue
-                try:
+                try:  # Defensive programming
                     puzzle_name = self.__create_game_name()
                     client = Client()
                     client.create_puzzle(creator.see_solution(), puzzle_name, self.__username_1)
